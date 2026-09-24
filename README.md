@@ -23,7 +23,8 @@ export LOG_DIR=/absolute/path/to/paper_runs
 export WANDB_ENTITY=<entity>
 export WANDB_PROJECT=devote
 export MUJOCO_GL=egl
-mkdir -p "$LOG_DIR" "$WANDB_DIR" "$WANDB_CACHE_DIR"
+mkdir -p "$LOG_DIR"
+wandb login
 ```
 
 ## Reproduce the experiments
