@@ -1,18 +1,19 @@
 import pathlib
 import warnings
 from functools import partial as bind
-import embodied
-from experiments import make_agent, make_replay, make_logger, make_env, Logger, hash_dict
-import numpy as np
 import os
 import sys
 import argparse
 import re
 
 directory = pathlib.Path(__file__).resolve().parent
-sys.path.insert(0, str(directory.parent))
 sys.path.insert(0, str(directory.parent.parent))
+sys.path.insert(0, str(directory.parent))
 __package__ = directory.name
+
+import embodied
+from experiments import make_agent, make_replay, make_logger, make_env, Logger, hash_dict
+import numpy as np
 
 warnings.filterwarnings('ignore', '.*box bound precision lowered.*')
 warnings.filterwarnings('ignore', '.*using stateful random seeds*')
@@ -281,7 +282,7 @@ def experiment(
         'mjp', 'xminigrid', 'xlandminigrid', 'craftax', 'ogbench')
     should_log_videos = bool(should_log_images or (log_video and seed == 0))
 
-    wandb_dict = dict(project=project_name, exp_name=exp_name, entity=entity, dir=logs_dir, group=group_name)
+    wandb_dict = dict(project=project_name, exp_name=exp_name, entity=entity, group=group_name)
 
     sqrt2 = float(np.sqrt(2.0))
     ac_overrides = {}
@@ -593,6 +594,7 @@ def experiment(
 
     # convert updated config back to embodied Config class
     config = embodied.Config(**config)
+    wandb_dict['dir'] = str(config.logdir)
     wandb_dict['config'] = _to_wandb_config(dict(config))
 
     # define args and run the experiment
@@ -743,7 +745,8 @@ def main(args):
     """ Experiment core """
     np.random.seed(args.seed)
 
-    run_name = f'{args.exp_name or args.alg + "_" + args.config_class + "_" + args.task}_seed_{args.seed}_{{timestamp}}'
+    run_label = args.exp_name or f'{args.alg}_{args.config_class}_{args.task}'
+    run_name = f'{run_label}_seed_{args.seed}_{{timestamp}}'.replace('/', '_')
     experiment(
         script=args.script,
         policy_eval_mc_episodes=args.policy_eval_mc_episodes,
@@ -942,7 +945,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='MTTest')
 
     # general experiment args
-    parser.add_argument('--logs_dir', type=str, default='./logs/')
+    parser.add_argument('--logs_dir', type=str, default=os.environ.get('LOG_DIR', './logs/'))
     parser.add_argument('--entity', type=str, default='sukhijab')
     parser.add_argument('--project_name', type=str, default='ManipulatorImgTest')
     parser.add_argument('--alg', type=str, default='DreamerUCB')

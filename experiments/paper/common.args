@@ -1,7 +1,6 @@
 --alg=Observer
 --script=train_eval
 --debug=0
---logs_dir=../paper_runs
 --project_name=devote_paper
 --entity=
 --model_size=size6m
