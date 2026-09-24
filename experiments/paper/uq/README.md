@@ -4,7 +4,6 @@ Run these commands from the repository root. `experiments/uq_exp.py` accepts a
 stage followed by ordinary command-line options or `@` argument files. Later
 files override earlier options. The stages write their data beneath
 `experiments/uncertainty_quantification/data/`.
-
 Prepare the UCI datasets and the synthetic GP data:
 
 ```sh

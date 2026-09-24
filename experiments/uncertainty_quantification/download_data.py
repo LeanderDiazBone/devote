@@ -60,7 +60,8 @@ def fetch(name: str) -> pd.DataFrame:
     elif name == "power":
         # Combined Cycle Power Plant: 4 features + PE (target). The xlsx has
         # 5 sheets that are independent shuffles of the same data; use sheet 0.
-        df = pd.read_excel(_zip_open(URLS[name], "folds5x2"), sheet_name=0)
+        df = pd.read_excel(
+            _zip_open(URLS[name], "folds5x2_pp.xlsx"), sheet_name=0, engine="openpyxl")
     elif name == "naval":
         # Naval Propulsion CBM: 16 features (two are constants) + 2 targets.
         # Drop the constant features and keep the first target (GT compressor
@@ -127,9 +128,11 @@ def main(argv: list[str] | None = None) -> None:
                       weight_decay=args.weight_decay, device=args.device,
                       seed=args.fit_seed)
     for name in args.datasets:
+        print(f"{name}: downloading and preparing data", flush=True)
         df = fetch(name)
         df.to_csv(BASE / f"{name}.csv", index=False)
         norm = normalize(df)
+        print(f"{name}: fitting a full-data MLP for {args.epochs} epochs on {args.device}", flush=True)
         norm["f"] = fit_full_mlp(norm, **fit_kwargs)
         norm.to_csv(NORM / f"{name}.csv", index=False)
         rmse = float(np.sqrt(np.mean((norm["f"] - norm["y"]) ** 2)))

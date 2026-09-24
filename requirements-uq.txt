@@ -1,6 +1,8 @@
 # Install in a separate environment for uncertainty quantification.
 numpy==2.2.6
+openpyxl==3.1.5
 pandas==2.2.2
 scikit-learn==1.5.0
 torch==2.3.1
 tqdm==4.66.4
+xlrd==2.0.1
