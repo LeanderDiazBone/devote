@@ -7,4 +7,5 @@ experiment_configs/
 experiments/uncertainty_quantification/data/
 *.venv*
 logs/
-setup.sh
+setup*
+.devote*
