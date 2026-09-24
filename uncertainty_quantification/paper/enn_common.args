@@ -1,0 +1,7 @@
+--K=10
+--z-dim=4
+--n-samples=10
+--epochs=500
+--batch-size=256
+--lr=0.001
+--weight-decay=0
