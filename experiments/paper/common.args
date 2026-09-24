@@ -8,6 +8,7 @@
 --log_images=1
 --log_coverage=1
 --log_coverage_heatmap=1
+--explore_trajectory_dir=0
 --num_envs=32
 --num_envs_eval=32
 --train_ratio=256
