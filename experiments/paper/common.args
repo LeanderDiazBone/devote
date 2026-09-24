@@ -2,7 +2,6 @@
 --script=train_eval
 --debug=0
 --project_name=devote_paper
---entity=
 --model_size=size6m
 --ac_inputs=obs
 --use_image=0

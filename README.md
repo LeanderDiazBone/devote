@@ -15,11 +15,13 @@ python -m pip install -r requirements.txt
 For the uncertainty quantification experiments, use a separate environment and
 install `requirements-uq.txt` there.
 
-For the exploration and control runs, set the paths to writable directories:
+Set writable paths and the W&B destination:
 
 ```sh
 export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
 export LOG_DIR=/absolute/path/to/paper_runs
+export WANDB_ENTITY=<entity>
+export WANDB_PROJECT=devote
 export MUJOCO_GL=egl
 mkdir -p "$LOG_DIR" "$WANDB_DIR" "$WANDB_CACHE_DIR"
 ```

@@ -70,8 +70,8 @@ def experiment(
         policy_eval_diagnostics_horizons: str = '64,200,2499',
         seed: int = 0,
         alg: str = 'MultiMex',
-        entity: str = 'sukhijab',
-        project_name: str = 'Test',
+        entity: str = None,
+        project_name: str = None,
         logs_dir: str = './logs/{timestamp}',
         total_steps: int = 1e6,
         expl_until: int = 0,
@@ -282,6 +282,12 @@ def experiment(
         'mjp', 'xminigrid', 'xlandminigrid', 'craftax', 'ogbench')
     should_log_videos = bool(should_log_images or (log_video and seed == 0))
 
+    entity = entity or os.environ.get('WANDB_ENTITY')
+    if not entity:
+        raise ValueError('Set WANDB_ENTITY to the W&B entity for this run, or pass --entity.')
+    project_name = project_name or os.environ.get('WANDB_PROJECT')
+    if not project_name:
+        raise ValueError('Set WANDB_PROJECT to the W&B project for this run, or pass --project_name.')
     wandb_dict = dict(project=project_name, exp_name=exp_name, entity=entity, group=group_name)
 
     sqrt2 = float(np.sqrt(2.0))
@@ -946,8 +952,8 @@ if __name__ == '__main__':
 
     # general experiment args
     parser.add_argument('--logs_dir', type=str, default=os.environ.get('LOG_DIR', './logs/'))
-    parser.add_argument('--entity', type=str, default='sukhijab')
-    parser.add_argument('--project_name', type=str, default='ManipulatorImgTest')
+    parser.add_argument('--entity', type=str, default=os.environ.get('WANDB_ENTITY'))
+    parser.add_argument('--project_name', type=str, default=os.environ.get('WANDB_PROJECT'))
     parser.add_argument('--alg', type=str, default='DreamerUCB')
     parser.add_argument('--total_steps', type=int, default=1_000_000)
     parser.add_argument('--expl_until', type=int, default=0)
@@ -1144,4 +1150,8 @@ if __name__ == '__main__':
     parser.add_argument('--replay_priosignal_ac', type=str, default='none')   # none | td | rb_td | critic
     parser.add_argument('--replay_priosignal_res', type=str, default='none')  # none | pc
     args = parser.parse_args()
+    if not args.entity:
+        parser.error('Set WANDB_ENTITY to the W&B entity for this run, or pass --entity.')
+    if not args.project_name:
+        parser.error('Set WANDB_PROJECT to the W&B project for this run, or pass --project_name.')
     main(args)

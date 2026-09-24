@@ -3,7 +3,13 @@
 Uncertainty quantification arguments and commands are in [uq/README.md](uq/README.md).
 
 Run these commands from the repository root in the Python environment used for
-this project. 
+this project. Set the W&B entity in the shell that launches the experiment (or
+export it in the cluster job script):
+
+```sh
+export WANDB_ENTITY=ldiazbone-eth-z-rich
+```
+
 Assemble one run by listing its argument files after `common.args`: trajectory
 diagnostics, task, method, optional length scale, optional ablation, then seed.
 `cat` passes their contents to the experiment launcher. Later files override
