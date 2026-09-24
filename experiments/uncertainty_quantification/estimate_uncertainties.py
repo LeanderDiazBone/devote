@@ -43,7 +43,10 @@ import torch
 from torch import nn
 from tqdm import tqdm
 
-from networks import EnsembleMLP, EnsembleRFN
+if __package__:
+    from .networks import EnsembleMLP, EnsembleRFN
+else:
+    from networks import EnsembleMLP, EnsembleRFN
 
 HERE = Path(__file__).parent
 SPLITS = HERE / "data" / "splits"
@@ -187,7 +190,7 @@ def run_split(split_dir: Path, out_dir: Path, *, arch: str, K: int, mode: str,
     return rows
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--arch", choices=list(ARCHS), default="mlp")
     parser.add_argument("--mode", choices=MODES, default="ensemble",
@@ -204,7 +207,7 @@ def main() -> None:
     parser.add_argument("--weight-decay", type=float, default=0)
     parser.add_argument("--device", default=("cuda" if torch.cuda.is_available() else "cpu"))
     parser.add_argument("--datasets", nargs="+", default=None, help="subset (matched against dataset folder names under data/splits)")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     z_dim = args.z_dim
     n_samples = args.n_samples or args.K

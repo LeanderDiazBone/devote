@@ -1,6 +1,6 @@
 --config_class=bsuite
 --task=bsuite_deep_sea/20
---total_steps=500000
+--total_steps=3000000
 --num_envs=1
 --num_envs_eval=1
 --reward_scale=0

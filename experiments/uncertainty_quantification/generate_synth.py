@@ -38,7 +38,10 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from networks import EnsembleMLP
+if __package__:
+    from .networks import EnsembleMLP
+else:
+    from networks import EnsembleMLP
 
 HERE = Path(__file__).parent
 SPLITS = HERE / "data" / "splits"
@@ -217,7 +220,7 @@ def write_split(out_dir: Path, *, train, id_, ood, grid=None, predictions=None) 
 # Entry point
 # ============================================================
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--name",          default=None, help="output subdir under data/splits (default: synth_gp_<dim>_<kernel>_<length_scale>)")
     parser.add_argument("--kernel",        default="rbf", choices=KERNELS)
@@ -239,7 +242,7 @@ def main() -> None:
     parser.add_argument("--mlp-lr",          type=float, default=1e-3)
     parser.add_argument("--mlp-weight-decay", type=float, default=1e-4)
     parser.add_argument("--mlp-device",      default=("cuda" if torch.cuda.is_available() else "cpu"))
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     name = args.name or f"synth_gp_{args.d}_{args.kernel}_{args.length_scale:g}"
     out_root = SPLITS / name

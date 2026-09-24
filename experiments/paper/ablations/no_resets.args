@@ -1,2 +1,2 @@
 --group_name=devote_no_resets
---reset_every=0
+--reset_soft_alpha=0

@@ -1,3 +1,5 @@
 --reset_every=0
+--reset_max_step=0
+--reset_keys=
+--reset_mode=hard
 --reset_soft_alpha=0
---group_name=plasticity_reset_0

@@ -1,7 +1,7 @@
 """Download UCI/OpenML regression datasets used by the UQ benchmarks.
 
 Writes one CSV per dataset under `data/base/` (raw float32, last column `y`)
-qand a 1st/99th-percentile-clipped copy under `data/normalized/`. The
+and a 1st/99th-percentile-clipped copy under `data/normalized/`. The
 normalized file also carries a column `f` with the prediction of a single
 MLP fit on the full normalized data; this baseline propagates through
 `generate_splits.py` into every split partition.
@@ -17,7 +17,10 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from networks import EnsembleMLP
+if __package__:
+    from .networks import EnsembleMLP
+else:
+    from networks import EnsembleMLP
 
 HERE = Path(__file__).parent
 BASE = HERE / "data" / "base"
@@ -107,7 +110,7 @@ def fit_full_mlp(df: pd.DataFrame, *, epochs: int, batch_size: int, lr: float,
         return model(Xt).squeeze(0).cpu().numpy().astype(np.float32)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--datasets", nargs="+", default=DATASETS, choices=DATASETS, help="subset to download (default: all)")
     parser.add_argument("--epochs", type=int, default=500)
@@ -116,7 +119,7 @@ def main() -> None:
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--device", default=("cuda" if torch.cuda.is_available() else "cpu"))
     parser.add_argument("--fit-seed", type=int, default=0)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     BASE.mkdir(parents=True, exist_ok=True)
     NORM.mkdir(parents=True, exist_ok=True)

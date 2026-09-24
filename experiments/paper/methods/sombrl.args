@@ -5,7 +5,6 @@
 --num_heads=1
 --actor_heads=1
 --value_prior_scale=0
---prior_corrector=0
---reset_every=0
+--reset_soft_alpha=0
 --normalize_exp_mean=0
 --beta=0

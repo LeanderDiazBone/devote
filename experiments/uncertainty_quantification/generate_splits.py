@@ -76,12 +76,12 @@ def write_split(out_dir: Path, df: pd.DataFrame,
 # Entry point
 # ============================================================
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--strategy", default="foong_gap", choices=list(SPLITTERS))
     parser.add_argument("--n-splits", type=int, default=10)
     parser.add_argument("--datasets", nargs="+", default=None, help="subset (matched against data/normalized/*.csv stems)")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     csvs = sorted(NORM.glob("*.csv"))
     if args.datasets:

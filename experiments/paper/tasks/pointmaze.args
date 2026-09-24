@@ -1,7 +1,7 @@
 --config_class=mjp
 --task=mjp_pointmaze_largespiral
---total_steps=5000000
+--total_steps=3000000
 --reward_scale=0
---prior_length_scale=1
+--prior_length_scale=2.5
 --use_jax_driver=1
 --env_mjp_length=1000

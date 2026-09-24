@@ -3,3 +3,5 @@
 *.py[cod]
 *.egg-info
 *.DS_Store
+experiment_configs/
+experiments/uncertainty_quantification/data/

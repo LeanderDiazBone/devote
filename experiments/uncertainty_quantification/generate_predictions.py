@@ -30,7 +30,10 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from networks import EnsembleMLP
+if __package__:
+    from .networks import EnsembleMLP
+else:
+    from networks import EnsembleMLP
 
 HERE = Path(__file__).parent
 SPLITS = HERE / "data" / "splits"
@@ -121,7 +124,7 @@ def run_split(split_dir: Path, out_dir: Path, *, K: int, seed: int, **train_kwar
     return rows
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--K", type=int, default=1, help="ensemble size; K=1 is the single-MLP baseline, K>1 trains a Poisson-bootstrapped ensemble")
     parser.add_argument("--epochs", type=int, default=500)
@@ -130,7 +133,7 @@ def main() -> None:
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--device", default=("cuda" if torch.cuda.is_available() else "cpu")) # else "mps" if torch.backends.mps.is_available()
     parser.add_argument("--datasets", nargs="+", default=None, help="subset (matched against dataset folder names under data/splits)")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     splits = sorted(SPLITS.glob("*/split*"))
     if args.datasets:

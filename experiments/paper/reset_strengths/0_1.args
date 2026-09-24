@@ -1,3 +1,2 @@
 --reset_every=50000
 --reset_soft_alpha=0.1
---group_name=plasticity_reset_0_1

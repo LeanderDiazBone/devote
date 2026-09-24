@@ -1,6 +1,6 @@
 --config_class=dmc_proprio
 --task=dmc_cheetah_run
---total_steps=5000000
+--total_steps=3000000
 --reward_scale=0
 --prior_length_scale=7.5
 --action_repeat=2
