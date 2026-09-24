@@ -1,14 +1,9 @@
-# Run the paper's exploration and control experiments
+# DEVOTE Experiments
 
 Uncertainty quantification arguments and commands are in [uq/README.md](uq/README.md).
 
 Run these commands from the repository root in the Python environment used for
-this project. Set `LOG_DIR` to an absolute, writable output directory:
-
-```sh
-export LOG_DIR=/absolute/path/to/paper_runs
-```
-
+this project. 
 Assemble one run by listing its argument files after `common.args`: trajectory
 diagnostics, task, method, optional length scale, optional ablation, then seed.
 `cat` passes their contents to the experiment launcher. Later files override
