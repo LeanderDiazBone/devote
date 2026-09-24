@@ -5,7 +5,8 @@ einops==0.8.0
 flax==0.10.0
 jax[cuda12]==0.4.35; sys_platform == "linux"
 jax==0.4.35; sys_platform != "linux"
-jaxlib==0.4.35
+# The CUDA extra of JAX 0.4.35 requires jaxlib 0.4.34.
+jaxlib==0.4.34
 ml_collections==1.0.0
 msgpack==1.0.8
 numpy==2.2.6
