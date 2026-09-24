@@ -76,21 +76,26 @@ def load_policy_eval(agent, checkpoint, mode, config_path=''):
         if source.get(key) != current.get(key):
             raise ValueError(f'Checkpoint config mismatch for {key}: '
                              f'{source.get(key)} != {current.get(key)}')
-    # These options can change a forward pass without changing parameter shapes.
-    old_prior = inner._resolved_prior_config(source.critic, source.critic_prior)
-    new_prior = inner._resolved_prior_config(current.critic, current.critic_prior)
-    for key in ('use_rff', 'length_scale', 'action_independent', 'act', 'outact',
-                'norm', 'epistemic', 'epistemic_dim', 'epistemic_std'):
-        # RFF priors do not use the configured hidden activation.
-        if key == 'act' and old_prior.get('use_rff') and new_prior.get('use_rff'):
-            continue
-        # Disabled epistemic conditioning ignores its dimension and scale.
-        if (key in ('epistemic_dim', 'epistemic_std')
-                and not old_prior.get('epistemic') and not new_prior.get('epistemic')):
-            continue
-        if old_prior.get(key) != new_prior.get(key):
-            raise ValueError(f'Checkpoint prior mismatch for {key}: '
-                             f'{old_prior.get(key)} != {new_prior.get(key)}')
+    # A SAC source with zero prior scale never uses or initializes its prior.
+    # Keep the evaluation agent's fresh prior in that case, allowing its length
+    # scale to vary while the same trained policy is reused.
+    load_prior = float(source.get('value_prior_scale', 0.0)) != 0.0
+    if load_prior:
+        # These options can change a forward pass without changing parameter shapes.
+        old_prior = inner._resolved_prior_config(source.critic, source.critic_prior)
+        new_prior = inner._resolved_prior_config(current.critic, current.critic_prior)
+        for key in ('use_rff', 'length_scale', 'action_independent', 'act', 'outact',
+                    'norm', 'epistemic', 'epistemic_dim', 'epistemic_std'):
+            # RFF priors do not use the configured hidden activation.
+            if key == 'act' and old_prior.get('use_rff') and new_prior.get('use_rff'):
+                continue
+            # Disabled epistemic conditioning ignores its dimension and scale.
+            if (key in ('epistemic_dim', 'epistemic_std')
+                    and not old_prior.get('epistemic') and not new_prior.get('epistemic')):
+                continue
+            if old_prior.get(key) != new_prior.get(key):
+                raise ValueError(f'Checkpoint prior mismatch for {key}: '
+                                 f'{old_prior.get(key)} != {new_prior.get(key)}')
     for key in ('act', 'norm', 'minstd', 'maxstd'):
         if source.actor.get(key) != current.actor.get(key):
             raise ValueError(f'Checkpoint actor mismatch for {key}')
@@ -102,8 +107,9 @@ def load_policy_eval(agent, checkpoint, mode, config_path=''):
     if policy_mode not in ('actor', 'exp_actor'):
         raise ValueError(f'Unsupported checkpoint collection policy: {policy_mode}')
     source_actor = 'exp_actor_sac' if policy_mode == 'exp_actor' else 'actor_sac'
-    components = [(actor, actor.replace('/exp_actor_sac', '/' + source_actor)),
-                  (inner.q_prior.path, inner.q_prior.path)]
+    components = [(actor, actor.replace('/exp_actor_sac', '/' + source_actor))]
+    if load_prior:
+        components.append((inner.q_prior.path, inner.q_prior.path))
     for head in inner.q.heads:
         if head.prior_corrector is None or head.residual_bootstrap is None:
             raise ValueError('Policy evaluation requires corrector and RB networks.')
@@ -119,6 +125,7 @@ def load_policy_eval(agent, checkpoint, mode, config_path=''):
             digest.update(np.asarray(merged[key]).tobytes())
     manifest = dict(corrector_mode=mode, checkpoint=str(path.resolve()),
                     policy_source=source_actor,
+                    prior_initialization='loaded' if load_prior else 'fresh',
                     checkpoint_config=str(source_path.resolve()),
                     loaded_parameters=counts, loaded_sha256=digest.hexdigest(),
                     rb_initialization='fresh', optimizer_initialization='fresh',

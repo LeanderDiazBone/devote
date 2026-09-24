@@ -1,0 +1,14 @@
+--script=train_eval
+--group_name=policy_eval_sac_checkpoint
+--total_steps=400000
+--reward_scale=1
+--action_repeat=2
+--num_envs=16
+--num_envs_eval=4
+--eval_every=10000
+--big_report_every=0
+--save_every=50000
+--log_images=0
+--log_coverage=0
+--log_coverage_heatmap=0
+--reset_every=0

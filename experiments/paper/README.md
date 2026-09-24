@@ -122,20 +122,49 @@ done
 
 ## Stable value estimation
 
-
+Generate a new standard-reward SAC checkpoint for each task first. This trains for 400,000 steps and saves
+periodically.
 
 ```sh
 for task in cheetah cartpole; do
+  cat experiments/paper/common.args \
+      "experiments/paper/policy_eval/$task.args" \
+      experiments/paper/methods/sac.args \
+      experiments/paper/policy_eval/checkpoint_train.args \
+      experiments/paper/seeds/0.args \
+    | xargs python -m experiments.exp
+done
+```
+
+Each run prints its output directory. Set these variables to the
+`checkpoint.ckpt` in the corresponding run directory; keep the neighboring
+`config.yaml` in place:
+
+```sh
+CHEETAH_CKPT=/absolute/path/to/cheetah/run/checkpoint.ckpt
+CARTPOLE_CKPT=/absolute/path/to/cartpole/run/checkpoint.ckpt
+```
+
+Then run TD and TUD at each prior length scale. Policy evaluation loads the
+trained SAC actor and initializes a fresh prior and value estimator. The same
+SAC checkpoint can therefore be used for every length scale of its task.
+Only length scale 1 is documented by the supplied historical commands.
+
+```sh
+for task in cheetah cartpole; do
+  case "$task" in
+    cheetah) checkpoint=$CHEETAH_CKPT ;;
+    cartpole) checkpoint=$CARTPOLE_CKPT ;;
+  esac
   for method in td tud; do
     for scale in 0_5 1 2_5 5 10; do
       cat experiments/paper/common.args \
           experiments/paper/policy_eval/common.args \
           "experiments/paper/policy_eval/$task.args" \
           "experiments/paper/policy_eval/$method.args" \
-          experiments/paper/length_scales/$scale.args" \
-          "experiments/paper/policy_eval/checkpoints/${task}_seed_0.args" \
+          "experiments/paper/policy_eval/length_scales/$scale.args" \
           experiments/paper/seeds/0.args \
-        | xargs python -m experiments.exp
+        | xargs python -m experiments.exp "--from_checkpoint=$checkpoint"
     done
   done
 done
