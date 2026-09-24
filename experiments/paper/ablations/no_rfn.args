@@ -1,0 +1,5 @@
+--group_name=devote_no_rfn
+--prior_use_rff=0
+--prior_layers=2
+--prior_units=50
+--prior_act=relu

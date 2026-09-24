@@ -1,0 +1,8 @@
+--config_class=bsuite
+--task=bsuite_deep_sea/20
+--total_steps=500000
+--num_envs=1
+--num_envs_eval=1
+--reward_scale=0
+--prior_length_scale=1
+--use_jax_driver=0

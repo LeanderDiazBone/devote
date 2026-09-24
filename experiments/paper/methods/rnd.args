@@ -1,0 +1,14 @@
+--group_name=rnd
+--policy_mode=exp_actor
+--exp_obj=rnd
+--td_target_mode=rnd
+--num_heads=1
+--actor_heads=1
+--value_prior_scale=1
+--prior_use_rff=0
+--prior_layers=2
+--prior_units=50
+--prior_act=relu
+--prior_corrector=1
+--reset_every=0
+--normalize_exp_mean=0

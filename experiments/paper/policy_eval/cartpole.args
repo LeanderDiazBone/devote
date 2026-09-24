@@ -1,0 +1,3 @@
+--config_class=dmc_proprio
+--task=dmc_cartpole_swingup_sparse
+--prior_length_scale=1

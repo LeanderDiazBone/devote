@@ -1,0 +1,3 @@
+--group_name=policy_eval_td
+--td_target_mode=joint
+--exp_obj=ucb

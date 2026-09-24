@@ -1,0 +1,507 @@
+{
+  "source": {
+    "upstream_repo": "https://github.com/MichaelTMatthews/Craftax",
+    "upstream_version": "1.5.0",
+    "notes": [
+      "This file is descriptive metadata and is not consumed by the runtime.",
+      "Craftax-Classic rewards each newly unlocked achievement with weight 1 plus a health bonus scaled by 0.1.",
+      "Craftax rewards each newly unlocked achievement with a tier-dependent default weight plus a health bonus scaled by 0.1."
+    ]
+  },
+  "craftax_classic": {
+    "reward_model": {
+      "achievement_component": "sum(new_achievements)",
+      "default_achievement_reward_weight": 1,
+      "health_component_scale": 0.1
+    },
+    "achievement_progression": [
+      {
+        "id": 0,
+        "name": "COLLECT_WOOD"
+      },
+      {
+        "id": 1,
+        "name": "PLACE_TABLE"
+      },
+      {
+        "id": 2,
+        "name": "EAT_COW"
+      },
+      {
+        "id": 3,
+        "name": "COLLECT_SAPLING"
+      },
+      {
+        "id": 4,
+        "name": "COLLECT_DRINK"
+      },
+      {
+        "id": 5,
+        "name": "MAKE_WOOD_PICKAXE"
+      },
+      {
+        "id": 6,
+        "name": "MAKE_WOOD_SWORD"
+      },
+      {
+        "id": 7,
+        "name": "PLACE_PLANT"
+      },
+      {
+        "id": 8,
+        "name": "DEFEAT_ZOMBIE"
+      },
+      {
+        "id": 9,
+        "name": "COLLECT_STONE"
+      },
+      {
+        "id": 10,
+        "name": "PLACE_STONE"
+      },
+      {
+        "id": 11,
+        "name": "EAT_PLANT"
+      },
+      {
+        "id": 12,
+        "name": "DEFEAT_SKELETON"
+      },
+      {
+        "id": 13,
+        "name": "MAKE_STONE_PICKAXE"
+      },
+      {
+        "id": 14,
+        "name": "MAKE_STONE_SWORD"
+      },
+      {
+        "id": 15,
+        "name": "WAKE_UP"
+      },
+      {
+        "id": 16,
+        "name": "PLACE_FURNACE"
+      },
+      {
+        "id": 17,
+        "name": "COLLECT_COAL"
+      },
+      {
+        "id": 18,
+        "name": "COLLECT_IRON"
+      },
+      {
+        "id": 19,
+        "name": "COLLECT_DIAMOND"
+      },
+      {
+        "id": 20,
+        "name": "MAKE_IRON_PICKAXE"
+      },
+      {
+        "id": 21,
+        "name": "MAKE_IRON_SWORD"
+      }
+    ]
+  },
+  "craftax": {
+    "reward_model": {
+      "achievement_component": "sum(new_achievements * default_reward_weight)",
+      "health_component_scale": 0.1,
+      "default_reward_weights_by_tier": {
+        "early": 1,
+        "intermediate": 3,
+        "advanced": 5,
+        "very_advanced": 8
+      }
+    },
+    "achievement_progression": {
+      "early": [
+        {
+          "id": 0,
+          "name": "COLLECT_WOOD",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 1,
+          "name": "PLACE_TABLE",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 2,
+          "name": "EAT_COW",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 3,
+          "name": "COLLECT_SAPLING",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 4,
+          "name": "COLLECT_DRINK",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 5,
+          "name": "MAKE_WOOD_PICKAXE",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 6,
+          "name": "MAKE_WOOD_SWORD",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 7,
+          "name": "PLACE_PLANT",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 8,
+          "name": "DEFEAT_ZOMBIE",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 9,
+          "name": "COLLECT_STONE",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 10,
+          "name": "PLACE_STONE",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 11,
+          "name": "EAT_PLANT",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 12,
+          "name": "DEFEAT_SKELETON",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 13,
+          "name": "MAKE_STONE_PICKAXE",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 14,
+          "name": "MAKE_STONE_SWORD",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 15,
+          "name": "WAKE_UP",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 16,
+          "name": "PLACE_FURNACE",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 17,
+          "name": "COLLECT_COAL",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 18,
+          "name": "COLLECT_IRON",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 19,
+          "name": "COLLECT_DIAMOND",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 20,
+          "name": "MAKE_IRON_PICKAXE",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 21,
+          "name": "MAKE_IRON_SWORD",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 22,
+          "name": "MAKE_ARROW",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 23,
+          "name": "MAKE_TORCH",
+          "default_reward_weight": 1
+        },
+        {
+          "id": 24,
+          "name": "PLACE_TORCH",
+          "default_reward_weight": 1
+        }
+      ],
+      "intermediate": [
+        {
+          "id": 25,
+          "name": "MAKE_DIAMOND_SWORD",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 26,
+          "name": "MAKE_IRON_ARMOUR",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 27,
+          "name": "MAKE_DIAMOND_ARMOUR",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 28,
+          "name": "ENTER_GNOMISH_MINES",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 29,
+          "name": "ENTER_DUNGEON",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 36,
+          "name": "DEFEAT_GNOME_WARRIOR",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 37,
+          "name": "DEFEAT_GNOME_ARCHER",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 38,
+          "name": "DEFEAT_ORC_SOLIDER",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 39,
+          "name": "DEFEAT_ORC_MAGE",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 50,
+          "name": "EAT_BAT",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 51,
+          "name": "EAT_SNAIL",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 52,
+          "name": "FIND_BOW",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 53,
+          "name": "FIRE_BOW",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 54,
+          "name": "COLLECT_SAPPHIRE",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 59,
+          "name": "COLLECT_RUBY",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 60,
+          "name": "MAKE_DIAMOND_PICKAXE",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 61,
+          "name": "OPEN_CHEST",
+          "default_reward_weight": 3
+        },
+        {
+          "id": 62,
+          "name": "DRINK_POTION",
+          "default_reward_weight": 3
+        }
+      ],
+      "advanced": [
+        {
+          "id": 30,
+          "name": "ENTER_SEWERS",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 31,
+          "name": "ENTER_VAULT",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 32,
+          "name": "ENTER_TROLL_MINES",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 40,
+          "name": "DEFEAT_LIZARD",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 41,
+          "name": "DEFEAT_KOBOLD",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 42,
+          "name": "DEFEAT_TROLL",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 43,
+          "name": "DEFEAT_DEEP_THING",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 55,
+          "name": "LEARN_FIREBALL",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 56,
+          "name": "CAST_FIREBALL",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 57,
+          "name": "LEARN_ICEBALL",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 58,
+          "name": "CAST_ICEBALL",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 63,
+          "name": "ENCHANT_SWORD",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 64,
+          "name": "ENCHANT_ARMOUR",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 65,
+          "name": "DEFEAT_KNIGHT",
+          "default_reward_weight": 5
+        },
+        {
+          "id": 66,
+          "name": "DEFEAT_ARCHER",
+          "default_reward_weight": 5
+        }
+      ],
+      "very_advanced": [
+        {
+          "id": 33,
+          "name": "ENTER_FIRE_REALM",
+          "default_reward_weight": 8
+        },
+        {
+          "id": 34,
+          "name": "ENTER_ICE_REALM",
+          "default_reward_weight": 8
+        },
+        {
+          "id": 35,
+          "name": "ENTER_GRAVEYARD",
+          "default_reward_weight": 8
+        },
+        {
+          "id": 44,
+          "name": "DEFEAT_PIGMAN",
+          "default_reward_weight": 8
+        },
+        {
+          "id": 45,
+          "name": "DEFEAT_FIRE_ELEMENTAL",
+          "default_reward_weight": 8
+        },
+        {
+          "id": 46,
+          "name": "DEFEAT_FROST_TROLL",
+          "default_reward_weight": 8
+        },
+        {
+          "id": 47,
+          "name": "DEFEAT_ICE_ELEMENTAL",
+          "default_reward_weight": 8
+        },
+        {
+          "id": 48,
+          "name": "DAMAGE_NECROMANCER",
+          "default_reward_weight": 8
+        },
+        {
+          "id": 49,
+          "name": "DEFEAT_NECROMANCER",
+          "default_reward_weight": 8
+        }
+      ]
+    },
+    "realm_progression": [
+      {
+        "player_level": 1,
+        "achievement_id": 29,
+        "achievement_name": "ENTER_DUNGEON"
+      },
+      {
+        "player_level": 2,
+        "achievement_id": 28,
+        "achievement_name": "ENTER_GNOMISH_MINES"
+      },
+      {
+        "player_level": 3,
+        "achievement_id": 30,
+        "achievement_name": "ENTER_SEWERS"
+      },
+      {
+        "player_level": 4,
+        "achievement_id": 31,
+        "achievement_name": "ENTER_VAULT"
+      },
+      {
+        "player_level": 5,
+        "achievement_id": 32,
+        "achievement_name": "ENTER_TROLL_MINES"
+      },
+      {
+        "player_level": 6,
+        "achievement_id": 33,
+        "achievement_name": "ENTER_FIRE_REALM"
+      },
+      {
+        "player_level": 7,
+        "achievement_id": 34,
+        "achievement_name": "ENTER_ICE_REALM"
+      },
+      {
+        "player_level": 8,
+        "achievement_id": 35,
+        "achievement_name": "ENTER_GRAVEYARD"
+      }
+    ]
+  }
+}

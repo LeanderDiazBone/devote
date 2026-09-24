@@ -1,0 +1,9 @@
+--group_name=devote
+--policy_mode=exp_actor
+--exp_obj=rnd
+--td_target_mode=rnd
+--num_heads=8
+--actor_heads=8
+--value_prior_scale=1
+--prior_use_rff=1
+--prior_corrector=1

@@ -1,0 +1,681 @@
+defaults:
+
+  seed: 0
+  method: name
+  task: dummy_disc
+  logdir: ''
+  eval_dir: ''
+  filter: 'score|length|fps|ratio|train/.*_loss$|train/rand/.*/mean'
+  tensorboard_videos: False
+  log_metrics_table: False
+
+  replay:
+    size: 5e6
+    online: True
+    # AC sampler — used by every loss that consumes the `ac` batch (wm, base TD,
+    # residual bootstrap, actor, alpha, intrinsic).
+    fracs: {uniform: 1.0, priority: 0.0, recency: 0.0}
+    prio: {exponent: 0.8, maxfrac: 0.5, initial: inf, zero_on_sample: True}
+    # Res (corrector) sampler — only used when `dual_batch_training: True`.
+    # Drives the `(res+cor)^2` corrector regression. Default is fully uniform.
+    res_fracs: {uniform: 1.0, priority: 0.0, recency: 0.0}
+    res_prio: {exponent: 0.8, maxfrac: 0.5, initial: inf, zero_on_sample: True}
+    priosignal: model           # legacy DreamerLegacy/SOMBRLLegacy only
+    priosignal_ac: none         # ObserverAgent: none | td | rb_td | critic
+    priosignal_res: none        # ObserverAgent: none | pc
+    recexp: 1.0
+    chunksize: 1024
+    save_wait: False
+    save_to_disk: False
+
+  jax:
+    platform: gpu
+    jit: True
+    compute_dtype: bfloat16
+    param_dtype: float32
+    prealloc: True
+    checks: False
+    logical_cpus: 0
+    debug: False
+    policy_devices: [0]
+    train_devices: [0]
+    sync_every: 1
+    profiler: False
+    transfer_guard: True
+    assert_num_devices: -1
+    fetch_policy_carry: False
+    nvidia_flags: False
+    xla_dump: False
+
+  run:
+    script: train_eval
+    test_mode: False
+    steps: 1e10
+    duration: 0
+    num_envs: 16
+    num_envs_eval: 16
+    expl_until: 0
+    expl_switches: {frequency_scale: 2, steps_scale: 0.1, steps_horizon: 64}
+    log_every: 120 
+    save_every: 1000000
+    eval_every: 120 # 10
+    eval_initial: True
+    eval_eps: 1 # 1
+    train_ratio: 32.0
+    train_rollout_steps: 10
+    train_fill: 0
+    eval_fill: 0
+    log_zeros: True
+    log_keys_video: [image]
+    log_keys_sum: '^$'
+    log_keys_avg: '^$'
+    log_keys_max: '^$'
+    log_keys_min: '^$'
+    log_video_fps: 20
+    log_video_streams: 4
+    log_episode_timeout: 60
+    from_checkpoint: ''
+    load_keys: ''
+    actor_addr: 'tcp://localhost:{auto}'
+    replay_addr: 'tcp://localhost:{auto}'
+    logger_addr: 'tcp://localhost:{auto}'
+    actor_batch: 8
+    actor_threads: 4
+    env_replica: -1
+    ipv6: False
+    usage: {psutil: True, nvsmi: True, gputil: False, malloc: False, gc: False}
+    timer: True
+    driver_parallel: True
+    agent_process: False
+    remote_replay: False
+    use_jax_driver: False
+    autoresume: False
+    eval_trajectory_dir: False
+    explore_trajectory_dir: False
+    offline_replay: False
+    big_report_every: 0  # Standard report calls between big table reports; 0 disables.
+    reset_every: 0  # Step interval for re-initializing agent params; 0 disables.
+    reset_max_step: 0  # Stop resetting once step exceeds this; 0 means no upper bound.
+    reset_keys: ''  # Regex of param names to reset. Empty resets all except global_step.
+    reset_mode: 'hard'  # 'hard' overwrites with fresh init; 'soft' mixes old and fresh.
+    reset_soft_alpha: 0.5  # Soft-reset mix: new = (1 - alpha) * old + alpha * fresh.
+    reset_num_layers: 0  # If >0, restrict reset to the last N layers of each matched module.
+    log_coverage: False  # Track per-cell visit counts for grid-maze envs.
+    log_coverage_heatmap: False  # Also log the count map as an image.
+    coverage_obs_key: 'state'  # Obs key whose first 2 dims are (x, y).
+    coverage_bins_per_cell: 4  # PointMaze: total bins per open cell (1, 4, 9, ...).
+    policy_eval_mc_episodes: 128       # MC rollouts per anchor / sweep point.
+    policy_eval_mc_max_steps: 1000     # Hard cap on rollout length (agent steps).
+    policy_eval_mc_max_step_limit: 0   # Override DMC's internal episode length (env frames) for MC only. 0 = keep dm_control default.
+    policy_eval_visit_steps: 0         # Agent steps to roll out from natural reset for anchor-distance scoring. 0 = skip.
+    policy_eval_every: 5000            # Env steps between TD readouts.
+    policy_eval_discount: 0.99         # Discount used for MC return aggregation.
+    policy_eval_video_size: 64         # Pixel size for MC rollout videos; 0 disables.
+    policy_eval_corrector: fresh_train  # load_freeze | load_train | fresh_train; policy/prior always loaded.
+    policy_eval_checkpoint_config: ''   # Empty discovers config.yaml next to the checkpoint/run.
+    policy_eval_diagnostics_every: 0 # Long-horizon MC diagnostics; 0 disables.
+    policy_eval_diagnostics_points: 24   # Deterministic panel from anchors and sweeps; 0 = all.
+    policy_eval_diagnostics_horizons: '64,200,2499'
+
+  wrapper:
+    length: 0
+    reset: True
+    frame_stack: 1
+    discretize: 0
+    checks: True
+    action_cost: 0.1
+    use_tolerance_reward: False
+    log_images: False
+    dynamics_complexity:
+      dims: 0
+      key: state
+      source_keys: auto
+      mode: append
+      seed: 0
+      features: 128
+      amplitude: 1.0
+      length_scale: 1.0
+      input_scale: 1.0
+      noise_std: 0.0
+  env:
+    atari: {size: [64, 64], repeat: 4, sticky: True, gray: True, actions: all, lives: unused, noops: 0, autostart: False, pooling: 2, aggregate: max, resize: pillow, use_seed: True}
+    crafter: {size: [64, 64], logs: False, use_logdir: False}    
+    atari100k: {size: [64, 64], repeat: 4, sticky: False, gray: False, actions: all,lives: unused, noops: 0, autostart: False, resize: pillow, length: 100000}
+    dmlab: {size: [64, 64], repeat: 4, episodic: True, actions: popart, use_seed: False}
+    minecraft: {size: [64, 64], break_speed: 100.0, logs: False}
+    dmc: {size: [64, 64], repeat: 2, image: True, camera: -1, use_seed: True, reward_scale: 1.0, max_step_limit: 0, distract_difficulty: '', distract_dataset_path: '', distract_dynamic: False, distract_videos: train}
+    procgen: {size: [64, 64]}
+    loconav: {size: [64, 64], repeat: 2, camera: -1, add_global_position: False}
+    humanoid: {obs_key: vector, policy_path: "", mean_path: "", var_path: "", policy_type: "", small_obs: "", is_eval: False, actuation: position, reward_dict: {hand_dist: 0.1, target_dist: 0.1, success: 10, terminate: False}}
+    gymnasium: {size: [64, 64]}
+    ogbench: {use_seed: True, reward_scale: 1.0}
+    mjp: {size: [64, 64], log_size: [256, 256], repeat: 2, image: False, log_image: False, greyscale: False, camera: -1, length: 1000, reward_scale: 1.0, action_scale: 0.0}
+    xminigrid: {image: True, size: [64, 64], resize: pillow, use_seed: True}
+    xlandminigrid: {image: True, size: [64, 64], resize: pillow, use_seed: True, benchmark: "", sample_ruleset: True}
+    craftax: {size: [64, 64], resize: pillow, use_seed: True, achievement_reward_weights: ''}
+    bandit: {length: 100, reward_noise: 0.05, use_seed: True}
+    bsuite: {reward_scale: 1.0}
+
+  # Agent
+  report: True
+  report_videos: True
+  report_gradnorms: False
+  batch_size: 16
+  batch_length: 65
+  batch_length_eval: 33
+  replay_length: 0
+  replay_length_eval: 0
+  replay_context: 1
+  random_agent: False
+  loss_scales: {dec_cnn: 1.0, dec_mlp: 1.0, reward: 1.0, cont: 1.0, dyn: 1.0, rep: 0.1, actor: 1.0, exp_actor: 1.0, critic: 1.0, replay_critic: 0.3, int_rew_model: 1.0, expl_critic: 1.0, temp: 1.0, alpha: 1.0, exp_alpha: 1.0, beta: 1.0}
+  opt: {scaler: rms, lr: 4e-5, eps: 1e-20, momentum: True, wd: 1e-2, wd_pattern: '/(q|critic|intr_q)/.*/kernel$', par_noise_scale: 0.0, par_noise_seed: 0, warmup: 1000, globclip: 0.0, agc: 0.3, beta1: 0.9, beta2: 0.999, details: False, pmin: 1e-3, anneal: 0, schedule: constant}
+  separate_lrs: True #True ### TODO: Change back, just for consistency
+  lrs: {dec: 4e-5, enc: 4e-5, dyn: 4e-5, rew: 4e-5, con: 4e-5, actor: 4e-5, exp_actor: 4e-5, critic: 4e-5, expl_critic: 4e-5, int_rew_model: 4e-5, intr_critic: 4e-5, temp: 4e-5, actor_sac: 3e-4, q: 3e-4, q2: 3e-4, intr_q: 3e-4, exp_actor_sac: 3e-4, intr_actor_sac: 3e-4, log_alpha: 1e-3, intr_log_alpha: 1e-3, exp_log_alpha: 1e-3, log_beta: 3e-5, log_tau: 3e-5}
+  ac_grads: none
+  reset_context: 0.0
+  replay_critic_loss: True
+  replay_critic_grad: True
+  replay_critic_bootstrap: imag
+  reward_grad: True
+  report_openl_context: 8
+
+  # World Model
+  dyn:
+    typ: rssm
+    rssm: {deter: 8192, hidden: 1024, stoch: 32, classes: 64, act: silu, norm: rms, unimix: 0.01, outscale: 1.0,
+           winit: normal, imglayers: 2, obslayers: 1, dynlayers: 1, absolute: False, cell: blockgru, blocks: 8,
+           block_fans: False, block_norm: False}
+  enc:
+    spaces: '.*'
+    typ: simple
+    simple: {depth: 64, mults: [1, 2, 3, 4, 4], layers: 3, units: 1024, act: silu, norm: rms, winit: normal,
+             symlog: True, outer: True, kernel: 5, minres: 4}
+    drq: {feature_dim: 50}
+  dec:
+    spaces: '.*'
+    typ: simple
+    simple: {inputs: [deter, stoch], vecdist: symlog_mse, depth: 64, mults: [1, 2, 3, 4, 4], layers: 3,
+             units: 1024, act: silu, norm: rms, outscale: 1.0, winit: normal, outer: True, kernel: 5, minres: 4,
+             block_space: 8, block_fans: False, block_norm: False, hidden_stoch: True, space_hidden: 0}
+  rewhead: {layers: 1, units: 1024, act: silu, norm: rms, dist: symexp_twohot, outscale: 0.0,
+            inputs: [deter, stoch], winit: normal, bins: 255, block_fans: False, block_norm: False}
+  conhead: {layers: 1, units: 1024, act: silu, norm: rms, dist: binary, outscale: 1.0,
+            inputs: [deter, stoch], winit: normal, block_fans: False, block_norm: False}
+  contdisc: 1 # True
+  rssm_loss: {free: 1.0}
+
+  # Ensemble models
+  int_rew_model:
+    num_heads: 5
+    disg_agg: sum
+    pooling_output: 32
+    use_entropy: False
+    expl_rew_weights: {obs: 1.0, dyn: 1.0, rew: 1.0}
+    model: {layers: 2, units: 256, act: silu, norm: rms,
+            dist: {obs: symlog_mse, dyn: onehot, rew: symlog_mse},
+            normalization_impl: {obs: mean_std, dyn: off, rew: mean_std},
+            unimix: 0.0, outscale: 1.0,
+            inputs: [deter, stoch], winit: normal, bins: 255, block_fans: False, block_norm: False}
+
+  # Actor Critic
+  actor: {layers: 3, units: 1024, act: silu, norm: rms, norm_eps: 1e-4, residual: False, hidden_outscale: 1.0, minstd: 0.1, maxstd: 1.0, outscale: 0.01, unimix: 0.01, inputs: [deter, stoch], winit: normal, block_fans: False, block_norm: False}
+  critic: {layers: 3, units: 1024, act: silu, norm: rms, norm_eps: 1e-4, residual: False, hidden_outscale: 1.0, dist: symexp_twohot, outscale: 0.0, inputs: [deter, stoch], winit: normal, bins: 255, block_fans: False, block_norm: False}
+  critic_prior: {layers: 2, units: 1024, outscale: 1.0, dist: mse, inputs: [deter, stoch], act: silu, outact: tanh, use_rff: False, length_scale: 1.0, action_independent: False, corrector: False, epistemic: False, epistemic_dim: 8, epistemic_std: 1.0, epistemic_samples: 1, epistemic_key: epistemic, epistemic_shared_contexts: False}
+  freeze_wm: False
+  freeze_corrector: False
+  freeze_all: False
+  actor_dist_disc: onehot
+  actor_dist_cont: normal     # normal | trunc_normal | squashed_normal (SAC tanh-Gaussian)
+  imag_start: all
+  imag_repeat: 1
+  imag_length: 15
+  imag_unroll: False
+  horizon: 333
+  return_lambda: 0.95
+  return_lambda_replay: 0.95
+  slow_critic_update: 1
+  slow_critic_fraction: 0.02
+  slow_actor_fraction: 0.02
+  slow_actor_update: 1
+  retnorm: {impl: perc, rate: 0.01, limit: 1.0, perclo: 5.0, perchi: 95.0}
+  valnorm: {impl: off, rate: 0.01, limit: 1e-8}
+  advnorm: {impl: off, rate: 0.01, limit: 1e-8}
+  actent: 3e-4
+  slowreg: 1.0
+  slowtar: False
+  temp: {init_temp: 1.0, min_temp: 1e-8, max_temp: 1e8, slope: 1e-8, constraint_weight: 1.0, temp_wd: 0.1}
+
+  
+  # NEW PARAMETERS
+  policy_mode: actor              # actor | exp_actor | exp_sampling | thompson_sampling
+  ac_inputs: wm                   # wm | obs | drq (WM features | raw obs | DrQ image embedding)
+  image_shift_pad: 0              # DrQ random-shift augmentation pad (0 disables; e.g. 4)
+  drq_num_views: 1                # Independent augmented views for DrQ critic targets/losses (paper: 2)
+  ens_heads: 2                    # used for dyn, value and q-functions
+  actor_ens_heads: 1
+  beta: 0.0                       # used for UCB in optimistic methods (init value when beta_learn=False; ignored when beta_learn=True — use beta_init)
+  beta_learn: False               # learn beta via BRO-style dual update on KL(exp_actor || actor)
+  beta_init: 1.0                  # initial beta when learned
+  beta_target_kl: 0.05            # target per-action-dim KL between exp_actor and actor
+  beta_pessimism: 0.0             # subtracted from β inside the dual loss (BRO 'pessimism' — acts as a soft floor)
+  beta_log_min: -10.0             # tanh-bounded log_beta lower bound (β ≥ exp(beta_log_min))
+  beta_log_max: 7.5               # tanh-bounded log_beta upper bound
+  tau_init: 1.0                   # initial τ (KL Lagrange weight). τ is auto-learned alongside β when beta_learn=True.
+  tau_log_min: -10.0              # tanh-bounded log_tau lower bound (τ ≥ exp(tau_log_min))
+  tau_log_max: 7.5                # tanh-bounded log_tau upper bound
+  boot_prob: 1.0                  # used for all ensembles
+  exp_obj: ucb                    # ucb | sombrl | ocb | ofu | none
+  normalize_exp_mean: False       # Divide the extrinsic mean_term in exp_score by retnorm's percentile span so beta is scale-free w.r.t. env reward magnitude. Only meaningful when base (mean) and bonus networks are independent (q_full+ucb, rnd, ocb). Updates retnorm with running base-network Q values inside the actor loss.
+  sampling_temp: 1.0
+  num_samples: 4
+  value_prior_scale: 0.0
+  reward_prior_scale: 0.0
+  visual_prior: none              # none | resnet18 | dinov2[:Flax ID/path] | vc1[-base|-large] | vc1:<Flax ID/path>. Frozen encoder whose embedding replaces the Q-prior's state inputs (Observer only).
+  visual_prior_dim: 8             # Per-prior-member frozen random projection dim. 0 = full model-dependent feature.
+  pessimism: -1.0                 # double-Q penalty: mean(q1,q2) - lambda*|q1-q2|. <0 disables.
+  td_lambda: 0.0                  # TD(λ) bootstrap mixing for Observer Q targets. 0 = 1-step TD; in (0,1) = λ-return.
+  td_lambda_horizon: 0            # Max steps the TD(λ) trace propagates before bootstrapping. 0 = no cap (sequence length).
+  td_target_mode: joint           # joint | separate | q_full | rnd. joint: base TD on Q + bootstrapped corrector + cross term. separate: same without cross term. q_full: f tracks pure reward; corrector regresses to −prior; residual_bootstrap TD bootstraps γ·(rb+c+p)′. rnd: like q_full but residual_bootstrap targets |γ·(rb+c+p)′|, and exp_actor uses ensemble-mean of residual_bootstrap as q_std. The z source on each side of the rb-TD is controlled by bellman_z_from_target.
+  residual_transform: 0.0         # q_full/rnd: downshift constant subtracted from (rb+c+p)′ inside the residual_bootstrap target. 0.0 disables (vanilla rb); 1.0 reproduces the paper's "-1 per step" shift (fixed point rb⋆ = -γ/(1-γ)).
+  residual_transform_reduction: 25.0  # R parameter for UCB std rescaling: σ_rb = Std(exp(α·rb)) with α = (1-γ)·log(R). Only active when residual_transform > 0.
+  residual_bootstrap_dist: mse    # Output distribution for the residual_bootstrap head. Independent of critic.dist. Defaults to 'mse' so 'outscale' actually controls output scale (twohot's symexp bins amplify tiny logits to huge values).
+  intrinsic_mode: model            # model | dynamics
+  use_exp_critic: True
+  use_entropy_backup_sac: 1
+
+  # Candidate-action policy (used when policy_mode == 'exp_sampling')
+  enumerate_actions: False     # True to evaluate all discrete actions instead of sampling
+  cand_grid_points: 0          # >0: when action space is continuous, score a fixed [N, action_dim] grid of candidates instead of actor samples (N = cand_grid_points**action_dim)
+  cand_policy: softmax          # softmax | epsilon_greedy (used at policy time for the candidate-action policy)
+  greedy_eps: 0.1             # epsilon for epsilon-greedy candidate-action policy
+  discount: -1.0              # Use default discount
+  actor_update_delay: 1       # Update actor/alpha every N critic updates
+  actor_update_warmup: 0      # Critic-only updates before actor/alpha updates start
+  dual_batch_training: False  # If True, sample two batches per step: `res` (for corrector pc loss) and `ac` (for everything else)
+  corrector_update_every: 1   # Apply corrector (res+cor)^2 loss every N train steps (uses `res` batch)
+  ac_update_every: 1          # Apply all other losses (wm, base TD, residual bootstrap, actor, alpha, intrinsic) every N train steps (uses `ac` batch)
+  actor_kl_reg: 0.0           # KL regularization weight for explore/intr actor toward reference (exploit) actor
+  exp_alpha_scale: 1.0        # Multiplicative scale on exp_actor's entropy temperature (set 0.0 to disable entropy bonus)
+  pc_target_actor: actor      # actor | exp_actor — actor used to bootstrap the prior_corrector TD target on self.q
+  td_target_actor: actor      # actor | exp_actor — actor used to bootstrap the base TD target on self.q (set to exp_actor in policy_eval to evaluate V^exp_actor)
+  bellman_z_from_target: False # OFU only. q_full: True = z (LHS) from replay buffer + z' (RHS) from exp_actor at s' (independent draws); False = single z ∼ p_z used on both sides. joint/separate: True = z' from exp_actor at s'; False = sample z at s; same z used on both sides either way.
+
+
+  # SAC-specific
+  sac:
+    target_mode: min              # min | random_min | individual
+    random_target_k: 2
+    target_entropy_scale_disc: 0.75
+    target_entropy_scale_cont: 0.5
+    init_alpha: 3e-4
+    actor_obj_norm_mode: std
+
+sizemini: &sizemini
+  dyn.rssm: {deter: 32, hidden: 4, classes: 4}
+  .*\.depth: 2
+  .*\.units: 32
+  int_rew_model: {num_heads: 5, model: { layers: 2, units: 192 }, pooling_output: 32}
+
+size1m: &size1m
+  dyn.rssm: {deter: 512, hidden: 64, classes: 4}
+  .*\.depth: 4
+  .*\.units: 64
+  int_rew_model: {num_heads: 5, model: { layers: 2, units: 192 }, pooling_output: 32}
+
+size3m: &size3m
+  dyn.rssm: {deter: 1024, hidden: 128, classes: 8}
+  .*\.depth: 8
+  .*\.units: 128
+  int_rew_model: {num_heads: 5, model: { layers: 2, units: 192 }, pooling_output: 32}
+
+size6m: &size6m
+  dyn.rssm: {deter: 1536, hidden: 192, classes: 12}
+  .*\.depth: 12
+  .*\.units: 192
+  int_rew_model: {num_heads: 5, model: { layers: 2, units: 192 }, pooling_output: 32}
+
+size12m: &size12m
+  dyn.rssm: {deter: 2048, hidden: 256, classes: 16}
+  .*\.depth: 16
+  .*\.units: 256
+  int_rew_model: {num_heads: 5, model: { layers: 2, units: 256 }, pooling_output: 64}
+
+size25m: &size25m
+  dyn.rssm: {deter: 3072, hidden: 384, classes: 24}
+  .*\.depth: 24
+  .*\.units: 384
+  int_rew_model: {num_heads: 5, model: { layers: 2, units: 256},
+                   pooling_output: 64}
+
+size50m: &size50m
+  dyn.rssm: {deter: 4096, hidden: 512, classes: 32}
+  .*\.depth: 32
+  .*\.units: 512
+  int_rew_model: { num_heads: 5,
+                   model: { layers: 2, units: 256},
+                   pooling_output: 64 }
+
+size100m: &size100m
+  dyn.rssm: {deter: 6144, hidden: 768, classes: 48}
+  .*\.depth: 48
+  .*\.units: 768
+  int_rew_model: { num_heads: 5,
+                   model: { layers: 2, units: 256},
+                   pooling_output: 64 }
+
+size200m: &size200m
+  dyn.rssm: {deter: 8192, hidden: 1024, classes: 64}
+  .*\.depth: 64
+  .*\.units: 1024
+  int_rew_model: { num_heads: 5,
+                   model: { layers: 2, units: 1024},
+                   pooling_output: 64}
+
+size400m: &size400m
+  dyn.rssm: {deter: 12288, hidden: 1536, classes: 96}
+  .*\.depth: 96
+  .*\.units: 1536
+  int_rew_model: { num_heads: 5, model: { layers: 2, units: 1024},
+                   pooling_output: 64 }
+
+atari:
+  <<: *size12m
+  task: atari_pong
+  env.atari.size: [96, 96]
+  (enc|dec).simple.minres: 6
+  run:
+    steps: 5.1e7
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+
+procgen:
+  <<: *size12m
+  task: procgen_coinrun
+  env.procgen.size: [96, 96]
+  (enc|dec).simple.minres: 6
+  run:
+    steps: 1.1e8
+    train_ratio: 64
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+
+crafter:
+  <<: *size12m
+  task: crafter_reward
+  run:
+    num_envs: 1
+    log_keys_max: '^log_achievement_.*'
+    log_keys_sum: '^log_reward$'
+    log_video_fps: 10
+    train_ratio: 512
+    steps: 1.1e6
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+
+craftax:
+  <<: *size12m
+  # Override --task with a valid Craftax task, e.g. craftax_<task-name>.
+  run:
+    num_envs: 1
+    num_envs_eval: 1
+    train_ratio: 512
+    save_every: -1
+    use_jax_driver: True
+  wrapper.checks: False
+  jax.transfer_guard: False
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+
+xminigrid:
+  <<: *size12m
+  task: xminigrid_MiniGrid-Empty-8x8
+  run:
+    num_envs: 1
+    num_envs_eval: 1
+    train_ratio: 512
+    save_every: -1
+    use_jax_driver: True
+  wrapper.checks: False
+  jax.transfer_guard: False
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+
+xlandminigrid:
+  <<: *size12m
+  task: xlandminigrid_XLand-MiniGrid-R9-25x25
+  run:
+    num_envs: 1
+    num_envs_eval: 1
+    train_ratio: 512
+    save_every: -1
+    use_jax_driver: True
+  wrapper.checks: False
+  jax.transfer_guard: False
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+
+pinpad:
+  <<: *size12m
+  task: pinpad_three
+  run.num_envs: 1
+  run.train_ratio: 1024
+  run.save_every: -1
+
+gymnasium:
+  <<: *size12m
+  task: LunarLander-v2
+  run.num_envs: 1
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+  run:
+    num_envs: 1
+    train_ratio: 512
+    save_every: -1
+
+ogbench:
+  <<: *size12m
+  task: ogbench_visual-antmaze-medium-navigate-singletask-task1-v0
+  run:
+    num_envs: 1
+    num_envs_eval: 1
+    train_ratio: 512
+    save_every: -1
+    log_keys_max: '^log_success$'
+    log_keys_sum: '^log_rew_'
+    log_keys_min: '^log_dist$'
+    log_keys_avg: '^log_dist$'
+    log_keys_video: [image]
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+
+bsuite:
+  <<: *size12m
+  task: bsuite_mnist/0
+  run.num_envs: 1
+  run.train_ratio: 1024
+  run.save_every: -1
+
+bandit:
+  <<: *size6m
+  task: bandit_ber_11
+  run.num_envs: 1
+  run.train_ratio: 1024
+  run.save_every: -1
+
+dmc:
+  <<: *size12m
+  task: dmc_walker_walk
+  run.train_ratio: 512
+  run.steps: 6e5
+
+dmc_vision:
+  <<: *size12m
+  task: dmc_walker_walk
+  run.train_ratio: 512
+  run.steps: 6e5
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+
+dmc_proprio:
+  <<: *size12m
+  task: dmc_walker_walk
+  run.train_ratio: 512
+  run.steps: 3e5
+  env.dmc.image: False
+
+loconav:
+  <<: *size12m
+  task: loconav_ant_maze_m
+  env.loconav.repeat: 1
+  run:
+    train_ratio: 256
+    log_keys_max: '^log_.*'
+
+mjp_proprio:
+  <<: *size12m
+  task: pick_cartesian
+  run:
+    num_envs: 16
+    train_ratio: 512
+    steps: 1e6
+    use_jax_driver: True
+    # Sum every ``log_*`` metric except ``log_dist``, which is min/avg
+    # aggregated below as a "how close did the agent get" diagnostic.
+    log_keys_sum: '^log_(?!dist$)'
+    log_keys_min: '^log_dist$'
+    log_keys_avg: '^log_dist$'
+  wrapper.checks: False
+  run.log_keys_video: [log_image]
+  jax.transfer_guard: False
+
+mjp:
+  <<: *size12m
+  task: pick_cartesian
+  run:
+    num_envs: 16
+    train_ratio: 512
+    steps: 1e6
+    use_jax_driver: True
+    log_keys_sum: '^log_(?!dist$)'
+    log_keys_min: '^log_dist$'
+    log_keys_avg: '^log_dist$'
+  wrapper.checks: False
+  run.log_keys_video: [log_image]
+  jax.transfer_guard: False
+
+mjp_vision:
+  <<: *size12m
+  task: CartpoleSwingupSparse
+  env.mjp.image: True
+  run:
+    num_envs: 16
+    train_ratio: 512
+    steps: 1e6
+    use_jax_driver: True
+    log_keys_sum: '^log_(?!dist$)'
+    log_keys_min: '^log_dist$'
+    log_keys_avg: '^log_dist$'
+  wrapper.checks: False
+  jax.transfer_guard: False
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+
+memmaze:
+  task: memmaze_11x11
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+
+humanoid_proprio:
+  task: humanoid_Pushing-v0
+  run:
+    script: train_eval
+    log_every: 30  # Seconds
+    eval_every: 100000  # Steps
+    train_ratio: 512
+  rssm.deter: 512
+  .*\.cnn_depth: 32
+  .*\.layers: 2
+  .*\.units: 512
+  encoder: {mlp_keys: '.*', cnn_keys: '$^'}
+  decoder: {mlp_keys: '.*', cnn_keys: '$^'}
+
+humanoid_vision:
+  task: humanoid_Pushing-v0
+  run:
+    log_every: 30  # Seconds
+    eval_every: 500000  # Steps
+    train_ratio: 512
+  rssm.deter: 512
+  .*\.cnn_depth: 32
+  .*\.layers: 2
+  .*\.units: 512
+  encoder: {mlp_keys: '.*', cnn_keys: 'image'}
+  decoder: {mlp_keys: '.*', cnn_keys: 'image'}
+
+humanoid_benchmark:
+  task: humanoid_Pushing-v0
+  rssm.deter: 1024
+  .*\.cnn_depth: 48
+  .*\.units: 640
+  .*\.layers: 3
+  run:
+    script: train_eval
+    eval_every: 500000  # Steps
+    train_ratio: 64
+    log_every: 30 # Seconds
+  batch_size: 16
+  encoder: {mlp_keys: '.*', cnn_keys: '$^'}
+  decoder: {mlp_keys: '.*', cnn_keys: '$^'}
+
+minecraft:
+  <<: *size12m
+  task: minecraft_diamond
+  run:
+    log_keys_max: '^log_inventory.*'
+  enc.spaces: 'image|inventory|inventory_max|equipped|health|hunger|breath'
+  dec.spaces: 'image|inventory|inventory_max|equipped|health|hunger|breath'
+
+dmlab:
+  <<: *size12m
+  task: dmlab_explore_goal_locations_small
+  enc.spaces: 'image|instr'
+  dec.spaces: 'image|instr'
+  run:
+    steps: 2.6e7
+
+atari100k:
+  <<: *size12m
+  task: atari_pong
+  run:
+    steps: 1.1e5
+    num_envs: 1
+    train_ratio: 256
+  enc.spaces: 'image'
+  dec.spaces: 'image'
+
+multicpu:
+  jax:
+    logical_cpus: 8
+    policy_devices: [0, 1]
+    train_devices: [2, 3, 4, 5, 6, 7]
+  run:
+    num_envs: 8
+    actor_batch: 4
+  batch_size: 12
+
+debug:
+  jax: {debug: True, jit: True, prealloc: False, platform: cpu, compute_dtype: bfloat16, profiler: False, checks: False}
+  wrapper: {length: 100, checks: True, action_cost: 0.1}
+  run: {num_envs: 4, eval_every: 10, log_every: 5, save_every: 15, train_ratio: 8,
+        actor_batch: 2, driver_parallel: False}
+  report_gradnorms: True
+  batch_size: 4
+  batch_length: 12
+  batch_length_eval: 12
+  replay.size: 1e4
+  (rewhead|critic).bins: 9
+  dyn.rssm: {deter: 12, hidden: 8, stoch: 4, classes: 4, blocks: 4}
+  .*\.layers: 2
+  .*\.units: 8
+  .*\.depth: 2
+  int_rew_model: {num_heads: 2, .*\.layers: 2, .*\.units: 8, pooling_output: 2}

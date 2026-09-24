@@ -1,0 +1,10 @@
+--group_name=sac
+--policy_mode=actor
+--exp_obj=none
+--td_target_mode=joint
+--num_heads=1
+--actor_heads=1
+--value_prior_scale=0
+--prior_corrector=0
+--reset_every=0
+--normalize_exp_mean=0

@@ -1,0 +1,14 @@
+--group_name=ts
+--policy_mode=actor
+--exp_obj=none
+--td_target_mode=joint
+--num_heads=8
+--actor_heads=8
+--value_prior_scale=1
+--prior_use_rff=0
+--prior_layers=2
+--prior_units=50
+--prior_act=relu
+--prior_corrector=1
+--reset_every=0
+--normalize_exp_mean=0

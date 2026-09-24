@@ -1,0 +1,7 @@
+--config_class=mjp
+--task=mjp_antmaze_avoid_obstacle_3
+--total_steps=40000000
+--reward_scale=1
+--prior_length_scale=7.5
+--use_jax_driver=1
+--env_mjp_length=500

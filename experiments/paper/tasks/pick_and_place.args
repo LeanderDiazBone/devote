@@ -1,0 +1,7 @@
+--config_class=mjp
+--task=mjp_panda_pick_and_place_init_mediumhard
+--total_steps=40000000
+--reward_scale=1
+--prior_length_scale=1
+--use_jax_driver=1
+--env_mjp_length=250
