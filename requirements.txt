@@ -5,7 +5,6 @@ einops==0.8.0
 flax==0.10.0
 jax[cuda12]==0.4.35; sys_platform == "linux"
 jax==0.4.35; sys_platform != "linux"
-# The CUDA extra of JAX 0.4.35 requires jaxlib 0.4.34.
 jaxlib==0.4.34
 ml_collections==1.0.0
 msgpack==1.0.8
@@ -18,7 +17,7 @@ tensorflow-probability==0.25.0
 wandb==0.17.2
 
 brax==0.12.1
-dm_control==1.0.26
+dm_control==1.0.28
 dm-env==1.6
 dm-tree==0.1.8
 imageio==2.34.1
