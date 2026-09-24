@@ -1,0 +1,6 @@
+# Install in a separate environment for uncertainty quantification.
+numpy==2.2.6
+pandas==2.2.2
+scikit-learn==1.5.0
+torch==2.3.1
+tqdm==4.66.4

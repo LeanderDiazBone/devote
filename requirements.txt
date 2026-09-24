@@ -1,25 +1,21 @@
-# Python packages from the supplied working Euler environment that are used
-# by the paper experiment code. Local/editable installations are excluded.
-# Version numbers below are copied from that environment without upgrades.
-
-# Agent and experiment infrastructure
 chex==0.1.87
 cloudpickle==3.1.0
 etils==1.10.0
+einops==0.8.0
 flax==0.10.0
-jax==0.8.2
-jax-cuda12-pjrt==0.4.30; sys_platform == "linux" and platform_machine == "x86_64"
-jax-cuda12-plugin==0.4.30; sys_platform == "linux" and platform_machine == "x86_64"
-jaxlib==0.8.2
+jax[cuda12]==0.4.35; sys_platform == "linux"
+jax==0.4.35; sys_platform != "linux"
+jaxlib==0.4.35
 ml_collections==1.0.0
 msgpack==1.0.8
 numpy==2.2.6
 optax==0.2.3
 psutil==5.9.8
 pyzmq==26.0.3
+ruamel.yaml==0.18.16
+tensorflow-probability==0.25.0
 wandb==0.17.2
 
-# Paper environments and reporting
 brax==0.12.1
 dm_control==1.0.26
 dm-env==1.6
@@ -29,10 +25,8 @@ matplotlib==3.9.0
 mujoco==3.3.0
 mujoco-mjx==3.3.0
 pillow==10.3.0
+playground==0.0.4
 scipy==1.13.1
 
-# Uncertainty quantification
 pandas==2.2.2
-scikit-learn==1.5.0
-torch==2.3.1
 tqdm==4.66.4

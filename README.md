@@ -12,6 +12,9 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
+For the uncertainty quantification experiments, use a separate environment and
+install `requirements-uq.txt` there.
+
 For the exploration and control runs, set the paths to writable directories:
 
 ```sh
