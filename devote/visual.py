@@ -6,9 +6,9 @@ import jax.numpy as jnp
 from dreamerv3 import ninjax as nj
 
 
-DEFAULT_DINOV2_MODEL = '~/.cache/optimistic_curiosity/dinov2-small-flax'
-DEFAULT_VC1_BASE_MODEL = '~/.cache/optimistic_curiosity/vc1-vitb-flax'
-DEFAULT_VC1_LARGE_MODEL = '~/.cache/optimistic_curiosity/vc1-vitl-flax'
+DEFAULT_DINOV2_MODEL = '~/.cache/devote/dinov2-small-flax'
+DEFAULT_VC1_BASE_MODEL = '~/.cache/devote/vc1-vitb-flax'
+DEFAULT_VC1_LARGE_MODEL = '~/.cache/devote/vc1-vitl-flax'
 
 
 def _preprocess_imagenet_vit(image):

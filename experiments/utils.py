@@ -64,10 +64,10 @@ def make_agent(config, alg='MultiMex'):
             return agt.Agent(env.obs_space, env.act_space, config)
 
         registry = {
-            'Dreamer': lambda: build_default('optimistic_curiosity.dreamer_agent'),
-            'DreamerOld': lambda: build_default('optimistic_curiosity.dreamer_agent_old'),
-            'Observer': lambda: build_default('optimistic_curiosity.observer_agent'),
-            'ObserverOld': lambda: build_default('optimistic_curiosity.observer_agent_old'),
+            'Dreamer': lambda: build_default('devote.dreamer_agent'),
+            'DreamerOld': lambda: build_default('devote.dreamer_agent_old'),
+            'Observer': lambda: build_default('devote.observer_agent'),
+            'ObserverOld': lambda: build_default('devote.observer_agent_old'),
             'DreamerLegacy': lambda: build_default('dreamerv3.agent'),
             'SOMBRLLegacy': lambda: build_default('multimex.dreamerucb.agent'),
         }

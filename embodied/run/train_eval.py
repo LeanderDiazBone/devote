@@ -29,7 +29,7 @@ def train_eval(
   logger = make_logger()
   if make_reporter is None:
     # Compatibility for existing launchers; experiments injects the factory.
-    from optimistic_curiosity.report import Reporter as make_reporter
+    from devote.report import Reporter as make_reporter
   reporter = make_reporter(agent, logger, args)
 
   logdir = embodied.Path(args.logdir)

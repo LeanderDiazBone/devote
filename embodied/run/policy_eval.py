@@ -559,7 +559,7 @@ def policy_eval(make_agent, make_replay, make_env, make_logger, args, make_repor
     env_ctor_idx = lambda i: make_env(i)
     logger = make_logger()
     if make_reporter is None:
-        from optimistic_curiosity.report import Reporter as make_reporter
+        from devote.report import Reporter as make_reporter
     reporter = make_reporter(agent, logger, args, policy_eval=True)
 
     # Restore only the treatment's requested components; RB/optimizers stay fresh.

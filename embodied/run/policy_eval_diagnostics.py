@@ -4,8 +4,8 @@ from pathlib import Path
 
 import numpy as np
 
-from optimistic_curiosity.reporting.novelty import _average_ranks, StateDensityReference
-from optimistic_curiosity.reporting.residual_mc import trajectory_returns, link_metrics
+from devote.reporting.novelty import _average_ranks, StateDensityReference
+from devote.reporting.residual_mc import trajectory_returns, link_metrics
 
 
 def panel_indices(rows, limit):

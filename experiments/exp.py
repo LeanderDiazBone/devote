@@ -644,7 +644,7 @@ def experiment(
 
     def make_reporter(*args, **kwargs):
         # Load reporting after the run loop starts process-backed environments.
-        from optimistic_curiosity.report import Reporter
+        from devote.report import Reporter
         return Reporter(*args, **kwargs)
 
     if args.script == 'train':

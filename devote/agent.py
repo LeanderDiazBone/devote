@@ -11,8 +11,8 @@ from dreamerv3 import jaxutils
 from dreamerv3 import ninjax as nj
 from dreamerv3 import nets
 from multimex.nets import IntrinsicRewardModel, Temperature
-import optimistic_curiosity.nets as dr_nets
-from optimistic_curiosity.nets import ShiftedDist
+import devote.nets as dr_nets
+from devote.nets import ShiftedDist
 from .report import ReportMixin
 
 f32 = jnp.float32

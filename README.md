@@ -48,6 +48,11 @@ For uncertainty quantification experiments, activate `.venv-uq` and follow the d
 
 ## Documentation
 
+The main implementation lives in the [`devote`](devote) Python package.
+Visual encoder checkpoints default to `~/.cache/devote/`; if you have existing
+checkpoints under the former cache directory, move them there or specify their
+paths explicitly in the visual encoder configuration.
+
 The [`experiments/paper`](experiments/paper) directory contains the argument files and commands for reproducing the experiments. For example, after completing the setup above, run DEVOTE on PointMaze with seed 0:
 
 ```bash
@@ -64,7 +69,16 @@ Refer to the experiment READMEs for the full commands and configurations:
 - [Pure exploration and complex control](experiments/paper/README.md): main learning curves, component ablations, length-scale sweeps, plasticity regularization, and stable value estimation.
 - [Uncertainty quantification](experiments/paper/uq/README.md): data preparation, prediction baselines, and uncertainty estimation experiments.
 
-<!-- TODO:
 ## Citation
- Add the BibTeX citation for Deep Epistemic Value Functions for Optimistic Exploration.
- -->
+
+```bibtex
+@misc{diazbone2026deepepistemicvaluefunctions,
+      title={Deep Epistemic Value Functions for Optimistic Exploration},
+      author={Leander Diaz-Bone and Marco Bagatella and Jonas Hübotter and Andreas Krause},
+      year={2026},
+      eprint={2609.35525},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2609.35525},
+}
+```

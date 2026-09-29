@@ -6,7 +6,7 @@ import embodied
 from dreamerv3 import jaxagent
 from dreamerv3 import jaxutils
 from dreamerv3 import ninjax as nj
-from optimistic_curiosity.agent import BaseAgent
+from devote.agent import BaseAgent
 from multimex.nets import DataNormalizer
 
 from .metrics import MetricsCollector

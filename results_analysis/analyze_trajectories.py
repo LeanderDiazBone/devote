@@ -1,7 +1,7 @@
 """Offline trajectory analysis: load k equally-spaced checkpoints and compute Q-metrics.
 
 Usage:
-    python multimex/optimistic_curiosity/analyze_trajectories.py \
+    python -m results_analysis.analyze_trajectories \
         --logdir /path/to/run/logdir \
         --alg Observer \
         --num_checkpoints 5

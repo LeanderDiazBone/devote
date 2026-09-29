@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 
 import embodied
-from optimistic_curiosity.agent import BaseAgent, init_carry
+from devote.agent import BaseAgent, init_carry
 from dreamerv3 import jaxagent
 from dreamerv3 import jaxutils
 from dreamerv3 import ninjax as nj

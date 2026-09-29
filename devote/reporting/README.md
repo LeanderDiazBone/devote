@@ -3,7 +3,7 @@
 Start at [`../report.py`](../report.py). It contains the agent report entry point,
 Observer/Dreamer diagnostic order, and the context shared within one report.
 `ReportMixin` composes the metric groups below. Existing imports of `Reporter`,
-`ReportMixin`, and `bootstrap_fit_metrics` from `optimistic_curiosity.report`
+`ReportMixin`, and `bootstrap_fit_metrics` from `devote.report`
 continue to work.
 
 | File | Owns | Metrics / main entry points |
@@ -61,7 +61,7 @@ continue to work.
 Run runtime checks in the dependency-equipped JAX environment:
 
 ```sh
-python -m pytest tests/optimistic_curiosity/test_report*.py -q
+python -m pytest tests/devote/test_report*.py -q
 ```
 
 Static checks do not import or execute project functionality:
