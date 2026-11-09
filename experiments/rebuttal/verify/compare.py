@@ -1,7 +1,7 @@
 """Compare our evaluation returns with a reference implementation's.
 
-Both sides are put on environment (simulator) steps. Ours: `eval_epstats/score/avg`
-from each run's metrics.jsonl, steps scaled by the run's `env.dmc.repeat`.
+Both sides are on environment (simulator) steps. Ours: `eval_epstats/score/avg`
+from each run's metrics.jsonl (the logger already multiplies steps by the action repeat).
 Reference: BRO's reported curves (`--ref_npy`, shape [evals, seeds], one eval every
 `--ref_every` steps) or MaxInfoRL's `{seed}.txt` files (`--ref_txt_dir`, columns:
 environment steps, return).
@@ -19,17 +19,14 @@ import pathlib
 import sys
 
 import numpy as np
-import ruamel.yaml as yaml
 
 
 def load_ours(logdir):
-    config = yaml.YAML(typ='safe').load((logdir / 'config.yaml').read_text())
-    repeat = int(config['env']['dmc']['repeat'])
     points = []
     for line in (logdir / 'metrics.jsonl').read_text().splitlines():
         row = json.loads(line)
         if 'eval_epstats/score/avg' in row:
-            points.append((row['step'] * repeat, row['eval_epstats/score/avg']))
+            points.append((row['step'], row['eval_epstats/score/avg']))
     return np.array(points)
 
 

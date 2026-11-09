@@ -472,7 +472,7 @@ class BaseAgent(nj.Module, ReportMixin):
         OFU is encoded by passing particles already at fixed z, so `mean` IS the optimistic value."""
         obj = self.exp_obj if exp_obj is None else exp_obj
         mean = particles.mean(0) if particles is not None else mean_extr
-        if obj in ('none', 'exploit', 'ofu'):
+        if obj in ('none', 'exploit', 'ofu', 'maxinfo'):
             return mean
         if obj == 'intr':
             return intr_mean

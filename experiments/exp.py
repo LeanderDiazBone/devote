@@ -600,6 +600,8 @@ def experiment(
             config.pop('int_rew_model.model.dist.dyn')
         if 'int_rew_model.model.dist.rew' in config:
             config.pop('int_rew_model.model.dist.rew')
+        config.pop('int_rew_model.model.normalization_impl.dyn', None)
+        config.pop('int_rew_model.model.normalization_impl.rew', None)
 
     # convert updated config back to embodied Config class
     config = embodied.Config(**config)
