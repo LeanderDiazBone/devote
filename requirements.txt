@@ -15,7 +15,7 @@ psutil==5.9.8
 pyzmq==26.0.3
 ruamel.yaml==0.18.16
 tensorflow-probability==0.25.0
-wandb==0.17.2
+wandb==0.19.11
 
 brax==0.12.1
 dm_control==1.0.28
