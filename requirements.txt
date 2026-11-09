@@ -5,6 +5,7 @@ einops==0.8.0
 flax==0.10.0
 jax[cuda12]==0.4.35; sys_platform == "linux"
 jax==0.4.35; sys_platform != "linux"
+nvidia-cuda-nvcc-cu12<12.9; sys_platform == "linux"
 jaxlib==0.4.34
 ml_collections==1.0.0
 msgpack==1.0.8
