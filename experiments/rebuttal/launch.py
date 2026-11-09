@@ -25,6 +25,7 @@ GROUP_PREFIX = 'sparse_dmc_calib'
 TASKS = ['cartpole_swingup_sparse', 'finger_turn_hard', 'acrobot_swingup_sparse']
 METHODS = ['devote', 'sac', 'sombrl', 'ts', 'rnd']
 SEEDS = [0, 1, 2]
+VERIFY_METHODS = ['bro', 'maxinforl']  # reproduce the reference papers on cheetah_run
 
 
 def read_args(path):
@@ -39,17 +40,26 @@ def read_args(path):
     return flags
 
 
-def assemble(task, method, seed, logs_dir):
+def assemble(task, method, seed, logs_dir, verify=False):
     flags = {}
-    for path in [
+    paths = [
         os.path.join(PAPER_DIR, 'common.args'),
         os.path.join(PAPER_DIR, 'diagnostics/trajectories.args'),
         os.path.join(REBUTTAL_DIR, f'tasks/{task}.args'),
         os.path.join(PAPER_DIR, f'methods/{method}.args'),
         os.path.join(PAPER_DIR, f'seeds/{seed}.args'),
-    ]:
+    ]
+    if verify:
+        paths = [
+            os.path.join(PAPER_DIR, 'common.args'),
+            os.path.join(PAPER_DIR, f'methods/{method}.args'),
+            os.path.join(REBUTTAL_DIR, f'verify/{method}_dmc.args'),
+            os.path.join(PAPER_DIR, f'seeds/{seed}.args'),
+        ]
+    for path in paths:
         flags.update(read_args(path))
-    flags['group_name'] = f'{GROUP_PREFIX}_{flags["group_name"]}'
+    if not verify:
+        flags['group_name'] = f'{GROUP_PREFIX}_{flags["group_name"]}'
     flags['exp_name'] = f'{method}_{task}_s{seed}'
     if logs_dir:
         flags['logs_dir'] = logs_dir
@@ -70,11 +80,18 @@ def main(args):
         assemble(task, method, seed, logs_dir)
         for task in TASKS for method in METHODS for seed in SEEDS
     ]
+    group = GROUP_PREFIX
+    if args.verify:
+        runs = [
+            assemble('cheetah_run', method, seed, logs_dir, verify=True)
+            for method in VERIFY_METHODS for seed in SEEDS
+        ]
+        group = 'verify'
 
     if args.mode == 'local':
         cmds = [f'cd {shlex.quote(REPO_ROOT)} && {cmd}' for _, cmd in runs]
     elif args.mode == 'euler':
-        out_dir = os.path.join(logs_dir, 'slurm', GROUP_PREFIX)
+        out_dir = os.path.join(logs_dir, 'slurm', group)
         cmds = []
         for flags, cmd in runs:
             out_file = os.path.join(out_dir, flags['exp_name'] + '_%j.out')
@@ -85,7 +102,7 @@ def main(args):
                 f'--gpus=rtx_4090:{args.num_gpus} --output={out_file} '
                 f'--wrap={shlex.quote(wrap)}')
     elif args.mode == 'mpi':
-        out_dir = os.path.join(logs_dir, 'condor', GROUP_PREFIX)
+        out_dir = os.path.join(logs_dir, 'condor', group)
         cmds, jobs = [], []
         for flags, cmd in runs:
             base = os.path.join(out_dir, flags['exp_name'])
@@ -133,6 +150,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str, default='euler', choices=['euler', 'mpi', 'local'])
     parser.add_argument('--bid', type=int, default=50)
+    parser.add_argument('--verify', default=False, action='store_true',
+                        help='Launch the BRO/MaxInfoRL cheetah_run reproduction runs instead.')
     parser.add_argument('--num_cpus', type=int, default=1)
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)
