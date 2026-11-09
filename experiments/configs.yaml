@@ -61,6 +61,7 @@ defaults:
     eval_every: 120 # 10
     eval_initial: True
     eval_eps: 1 # 1
+    reset_at: ''    # comma-separated env steps for extra parameter resets (in addition to reset_every)
     train_ratio: 32.0
     train_rollout_steps: 10
     train_fill: 0
@@ -264,9 +265,10 @@ defaults:
   tau_log_min: -10.0              # tanh-bounded log_tau lower bound (τ ≥ exp(tau_log_min))
   tau_log_max: 7.5                # tanh-bounded log_tau upper bound
   boot_prob: 1.0                  # used for all ensembles
-  exp_obj: ucb                    # ucb | sombrl | ocb | ofu | none
+  exp_obj: ucb                    # ucb | sombrl | ocb | ofu | maxinfo | none (maxinfo: MaxInfoSAC info-gain bonus in the main critic/actor; needs policy_mode=actor)
   normalize_exp_mean: False       # Divide the extrinsic mean_term in exp_score by retnorm's percentile span so beta is scale-free w.r.t. env reward magnitude. Only meaningful when base (mean) and bonus networks are independent (q_full+ucb, rnd, ocb). Updates retnorm with running base-network Q values inside the actor loss.
   sampling_temp: 1.0
+  eval_deterministic: False       # eval mode acts with the actor's mean action (single-head actor only)
   num_samples: 4
   value_prior_scale: 0.0
   reward_prior_scale: 0.0

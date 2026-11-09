@@ -8,6 +8,7 @@ from dreamerv3 import jaxagent
 from dreamerv3 import jaxutils
 from dreamerv3 import ninjax as nj
 from dreamerv3.nets import SquashedNormal
+from multimex.nets import DataNormalizer
 
 from . import nets as dr_nets
 from .metrics import MetricsCollector
@@ -111,7 +112,8 @@ class ObserverAgent(BaseAgent):
         self.visual_prior = config.visual_prior != 'none'
         self.use_exp_actor = self.policy_mode == 'exp_actor'
         self.use_intrinsic_reward = self.exp_obj in ('sombrl', 'ocb')
-        self.use_temp = self.use_intrinsic_reward
+        self.use_info_gain = self.exp_obj == 'maxinfo'
+        self.use_temp = self.use_intrinsic_reward or self.use_info_gain
         # Only train the world model when something actually consumes its
         # outputs: an intrinsic-reward model that depends on dynamics, or Q /
         # actor inputs that read from the latent state (ac_inputs == 'wm').
@@ -131,7 +133,7 @@ class ObserverAgent(BaseAgent):
         if int(config.cand_grid_points) > 0 and not self._is_discrete:
             self._cand_action_grid = self._make_continuous_action_grid(int(config.cand_grid_points))
         assert config.policy_mode in ('actor', 'exp_actor', 'exp_sampling', 'thompson_sampling'), config.policy_mode
-        assert config.exp_obj in ('ucb', 'sombrl', 'ocb', 'ofu', 'rnd', 'none')
+        assert config.exp_obj in ('ucb', 'sombrl', 'ocb', 'ofu', 'rnd', 'maxinfo', 'none')
         assert config.pc_target_actor in ('actor', 'exp_actor'), config.pc_target_actor
         assert config.td_target_actor in ('actor', 'exp_actor'), config.td_target_actor
         assert config.td_target_mode in ('joint', 'separate', 'q_full', 'rnd'), config.td_target_mode
@@ -229,6 +231,14 @@ class ObserverAgent(BaseAgent):
                 self.temp = self.build_temperature(config)
                 if self.learn_temp:
                     self.slowactor, self.policy_updater = self.build_slow_actor(config, self.exp_actor if self.use_exp_actor else self.intr_actor, heads=1, name='slow_intr_actor', updater_name='intr_policy_updater')
+        if self.use_info_gain:
+            # MaxInfoSAC: dynamics ensemble, its info-gain temperature (tuned against a slow actor), and a running normalizer of the info gain.
+            assert self.policy_mode == 'actor' and self._actor_heads == 1 and self.ac_inputs == 'obs' and self.learn_temp, 'maxinfo needs policy_mode=actor, one actor head, ac_inputs=obs and a learned temp'
+            label_dim = int(sum(np.prod(obs_space[k].shape) for k in self._state_obs_keys)) + 1
+            self.int_rew_model = self.build_intrinsic_reward_model(config.update({'int_rew_model.pooling_output': label_dim}))
+            self.temp = self.build_temperature(config)
+            self.slowactor, self.policy_updater = self.build_slow_actor(config, self.actor, heads=1, name='slow_intr_actor', updater_name='intr_policy_updater')
+            self.ig_norm = DataNormalizer((), name='ig_norm')
 
         # Target entropy and disposition routing.
         scale = config.sac.target_entropy_scale_disc if self._is_discrete else config.sac.target_entropy_scale_cont
@@ -251,6 +261,8 @@ class ObserverAgent(BaseAgent):
                 self.modules += [self.intr_actor, self.intr_log_alpha]
             if self.use_temp:
                 self.modules.append(self.temp)
+        if self.use_info_gain:
+            self.modules += [self.int_rew_model, self.temp]
         
         if config.freeze_all:
             self.modules = []
@@ -298,6 +310,8 @@ class ObserverAgent(BaseAgent):
             self.scales['intr_q'] = ls.get('intr_q', 1.0)
             if not self.use_exp_actor:
                 self.scales['intr_actor_sac'] = ls.get('actor', 1.0)
+        if self.use_info_gain:
+            self.scales['int_rew_model'] = ls.get('int_rew_model', 1.0)
         if self.learn_temp:
             self.scales['temp'] = ls['temp']
         self._log_metrics_table = config.log_metrics_table
@@ -693,6 +707,8 @@ class ObserverAgent(BaseAgent):
             else:
                 logpi = self._actor_logpi(next_actor, acts, z_out)
                 next_v = target_qs - self.config.use_entropy_backup_sac * alpha_v * self._expand_to_heads(logpi, value_heads)
+                if self.use_info_gain:
+                    next_v = next_v + self._info_gain(next_states_unh, treemap(lambda x: x[0], acts), update=False)
             next_acts = acts                                                 # [H, B, T, ...]
 
         rh, ch = rewards[None], con[None]
@@ -1000,6 +1016,8 @@ class ObserverAgent(BaseAgent):
 
         # Score reduces the leading P axis; H axis is preserved (exp_actor / intr_actor use H=1).
         obj_h = self.exp_score(parts, exp_obj=objective, rscale=rscale)
+        if self.use_info_gain and objective == 'exploit':
+            obj_h = obj_h + self._info_gain(s, treemap(lambda x: x[0], acts), update=update)[None]
 
         # Entropy / actor loss
         if self._is_discrete:
@@ -1113,6 +1131,26 @@ class ObserverAgent(BaseAgent):
         
         metrics.update({f'int_rew_model/{k}': v for k, v in int_rew_metrics.items()})
         metrics.update(intr_q_metrics)
+        return losses, metrics
+
+    def _info_gain(self, states, acts, update):
+        """MaxInfoSAC bonus: temperature times the running-normalized ensemble info gain at (states, acts) [B, T]."""
+        model_states, model_acts = self._intrinsic_model_inputs(states, acts)
+        call = lambda m: m(model_states, model_acts)[0]
+        info_gain = call(self.int_rew_model) if nj.creating() else self._frozen_call(self.int_rew_model, call)
+        _, _, _, info_gain = self.ig_norm(info_gain, bdims=2, update=update)
+        alpha, _ = self.temp()
+        return alpha * info_gain
+
+    def _info_gain_losses(self, batch, data):
+        """MaxInfoSAC: fit the ensemble on (s_t, a_t) -> [s_{t+1} - s_t, r_{t+1}] and tune the info-gain temperature."""
+        obs = jnp.concatenate([f32(data[k]) for k in self._state_obs_keys], -1)
+        labels = {'obs': sg(jnp.concatenate([obs[:, 1:] - obs[:, :-1], f32(data['reward'][:, 1:, None])], -1))}
+        states, actions = self._intrinsic_model_inputs(self._take_dyn_head(batch['states']), self._take_dyn_head(batch['actions']))
+        model_loss, model_metrics = self.int_rew_model.loss(labels=labels, model_input=sg(states | actions))
+        losses = {'int_rew_model': batch['weight'] * model_loss, 'temp': self.temp_loss(batch['states'], actor=self.actor, actor_heads=1)}
+        metrics = {f'info_gain/{k}_loss': v for k, v in model_metrics.items()}
+        metrics['info_gain/temp'] = self.temp()[0]
         return losses, metrics
 
     def _prepare_train_batch(self, data, replay_outs):
@@ -1244,6 +1282,11 @@ class ObserverAgent(BaseAgent):
             wm_losses.update(intrinsic_losses)
             mc.update(intrinsic_metrics)
 
+        if self.use_info_gain:
+            info_gain_losses, info_gain_metrics = self._info_gain_losses(batch, data_ac)
+            wm_losses.update(info_gain_losses)
+            mc.update(info_gain_metrics)
+
         if not self.use_candidate_policy:
             actor_losses, actor_metrics = self._compute_actor_alpha_losses(actor_net=self.actor, states=sg(states), weight=batch['weight'], update=update, retnorm=self.retnorm, log_alpha=self.log_alpha, actor_heads=self.actor_heads, objective='exploit', logging_prefix='exploit')
             actor_losses = {k: v * actor_update_mask for k, v in actor_losses.items()}
@@ -1353,7 +1396,10 @@ class ObserverAgent(BaseAgent):
         else:
             actor = self.exp_actor if (self.use_exp_actor and mode == 'explore') else self.actor
             z_input = self._refresh_z_input(actor, z_input, obs['is_first'])
-            act, z_out, _ = self._actor_step(actor, self._take_dyn_head(ac_inp), z_input=z_input, bdims=1, select_head=True)
+            act, z_out, actor_dist = self._actor_step(actor, self._take_dyn_head(ac_inp), z_input=z_input, bdims=1, select_head=True)
+            if mode == 'eval' and self.config.eval_deterministic:
+                assert self._actor_heads == 1, 'eval_deterministic needs a single-head actor'
+                act = {k: cast(actor_dist[k].mean()[0]) for k in act}
 
         out = treemap(lambda x: x[0], out_h)
         outs = {}
@@ -1474,6 +1520,8 @@ class ObserverAgent(BaseAgent):
                     self.policy_updater()
                 else:
                     self.temp.update()
+        if self.use_info_gain:
+            self.policy_updater()
 
 @jaxagent.Wrapper
 class Agent(ObserverAgent):

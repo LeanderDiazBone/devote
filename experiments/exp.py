@@ -242,6 +242,7 @@ def experiment(
         replay_res_fracs_recency: float = 0.0,
         replay_priosignal_ac: str = 'none',
         replay_priosignal_res: str = 'none',
+        extra_flags: tuple = (),
         ):
     
 
@@ -586,6 +587,8 @@ def experiment(
         **({'critic.layers': critic_layers} if critic_layers > 0 else {}),
         **({'critic.units': critic_units} if critic_units > 0 else {}),
     })
+    # Unknown `--key=value` launcher flags are raw config overrides; apply last.
+    config = embodied.Flags(config).parse(list(extra_flags))
     # convert config to dict and delete keys that are not required
     config = config.flat
     # only log the zeroth seed and nothing to the list (trainer does not accept an empty list)
@@ -945,6 +948,7 @@ def main(args):
         replay_res_fracs_recency=args.replay_res_fracs_recency,
         replay_priosignal_ac=args.replay_priosignal_ac,
         replay_priosignal_res=args.replay_priosignal_res,
+        extra_flags=args.extra_flags,
     )
 
 if __name__ == '__main__':
@@ -1149,7 +1153,7 @@ if __name__ == '__main__':
     parser.add_argument('--replay_res_fracs_recency', type=float, default=0.0)
     parser.add_argument('--replay_priosignal_ac', type=str, default='none')   # none | td | rb_td | critic
     parser.add_argument('--replay_priosignal_res', type=str, default='none')  # none | pc
-    args = parser.parse_args()
+    args, args.extra_flags = parser.parse_known_args()
     if not args.entity:
         parser.error('Set WANDB_ENTITY to the W&B entity for this run, or pass --entity.')
     if not args.project_name:

@@ -65,7 +65,13 @@ def train_eval(
   reset_every = int(getattr(args, 'reset_every', 0) or 0)
   reset_max_step = int(getattr(args, 'reset_max_step', 0) or 0)
   _reset_trigger = embodied.when.Every(reset_every, initial=False) if reset_every > 0 else (lambda s: False)
-  should_reset = (lambda s: _reset_trigger(s) and (reset_max_step <= 0 or int(s) <= reset_max_step))
+  reset_at = sorted(int(x) for x in str(getattr(args, 'reset_at', '') or '').split(',') if x)
+  def should_reset(s):
+    due = _reset_trigger(s) and (reset_max_step <= 0 or int(s) <= reset_max_step)
+    while reset_at and int(s) >= reset_at[0]:
+      reset_at.pop(0)
+      due = True
+    return due
   reset_keys = getattr(args, 'reset_keys', '') or ''
   reset_mode = getattr(args, 'reset_mode', 'hard') or 'hard'
   reset_soft_alpha = float(getattr(args, 'reset_soft_alpha', 1.0))

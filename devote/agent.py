@@ -317,8 +317,8 @@ class BaseAgent(nj.Module, ReportMixin):
             pooling=spec['pooling_kwargs'],
             model_kwargs=spec['model_kwargs'],
             disg_agg=config.int_rew_model.disg_agg,
-            use_entropy=False,
-            use_squared_disg=False,
+            use_entropy=bool(config.int_rew_model.use_entropy),
+            use_squared_disg=bool(config.int_rew_model.use_entropy),
             exploration_reward_weights=spec['intr_rew_weights'],
             name='int_rew_model',
         )

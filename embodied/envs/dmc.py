@@ -122,6 +122,20 @@ class DMC(embodied.Env):
           axis_names=('shoulder_angle', 'elbow_angle'),
           project=project,
       )
+    if task == 'finger_turn_hard':
+      # position = [proximal, distal, tip_x, tip_z] with the spinner tip
+      # relative to the hinge; velocity = [proximal, distal, hinge].
+      def project(tran):
+        p = np.asarray(tran['position'], dtype=np.float64)
+        v = np.asarray(tran['velocity'], dtype=np.float64)
+        return np.stack([np.arctan2(p[..., 3], p[..., 2]), v[..., 2]], axis=-1)
+      return dict(
+          bounds=np.array(
+              [[-np.pi, np.pi], [-15.0, 15.0]], dtype=np.float64),
+          bins=(25, 25),
+          axis_names=('spinner_angle', 'spinner_velocity'),
+          project=project,
+      )
     if task in ('hopper_stand', 'hopper_hop'):
       # position = qpos[1:] = [torso_z, torso_angle, hip, knee, foot].
       # velocity = qvel        = [vx, vz, wy, vhip, vknee, vfoot].

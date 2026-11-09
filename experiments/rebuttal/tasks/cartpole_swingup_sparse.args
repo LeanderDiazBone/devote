@@ -1,0 +1,7 @@
+--config_class=dmc_proprio
+--task=dmc_cartpole_swingup_sparse
+--total_steps=3000000
+--reward_scale=1
+--prior_length_scale=1
+--action_repeat=2
+--use_jax_driver=0
