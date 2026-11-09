@@ -19,6 +19,7 @@ source "$DEVOTE_VENV/bin/activate" || return 1
 
 # Runs write beneath the batch OUTPUT_DIR when launched by cluster_runner.
 export LOG_DIR="${OUTPUT_DIR:-$DEVOTE_HOME/logs}"
+export WANDB_ENTITY="${WANDB_ENTITY:-ldiazbone-eth-z-rich}"
 export WANDB_PROJECT="${WANDB_PROJECT:-devote}"
 export MUJOCO_GL=egl
 mkdir -p "$DEVOTE_HOME" "$LOG_DIR" || return 1
