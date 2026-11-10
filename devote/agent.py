@@ -117,7 +117,7 @@ class BaseAgent(nj.Module, ReportMixin):
         for k, v in prior_config.items():
             if k in self._prior_special_keys:
                 continue
-            if v != 0:
+            if v != 0 and v != 'inherit':
                 kw[k] = v
         return kw
 
@@ -199,7 +199,7 @@ class BaseAgent(nj.Module, ReportMixin):
         else:
             prior_ctor = dr_nets.EnsembleMLP
             prior_args = (prior_shape,)
-            prior_kwargs = dict(num_heads=N, **prior_kw)
+            prior_kwargs = dict(num_heads=N, length_scale=prior_length_scale, **prior_kw)
         if prior_projection is not None:
             prior = dr_nets.EnsembleInputProjection(
                 prior_ctor, prior_args, prior_kwargs, prior_projection,

@@ -648,12 +648,12 @@ class ObserverAgent(BaseAgent):
         s_h = treemap(lambda x: jnp.broadcast_to(x[None], (H,) + x.shape), s_unh)
         inputs = self._q_input(s_h, pc_acts) if not self._is_discrete else self._q_input(s_h)
         kw = {k: (jnp.broadcast_to(v[None], (H,) + v.shape) if k in ('epistemic', 'ensemble') and v is not None else v) for k, v in kw.items()}
-        comps = q_module.component_means(inputs, bdims=3, has_ensemble=False, **kw)
-        # comps[k]: [V, H, B, T, *q_shape]; reduce H per disposition.
-        if pc_actor is not None and _disp(pc_actor).ensemble == 'input':
-            V = next(iter(comps.values())).shape[0]
-            idx = jnp.arange(V)
-            return {k: v[idx, idx] for k, v in comps.items()}
+        matched = pc_actor is not None and _disp(pc_actor).ensemble == 'input'
+        comps = q_module.component_means(inputs, bdims=3, has_ensemble=matched, **kw)
+        # comps[k]: [V, H, B, T, *q_shape]; reduce H per disposition. ensemble:input takes the
+        # (V, H) diagonal, evaluated directly: head v only saw actor head v's inputs -> [V, B, T, ...].
+        if matched:
+            return comps
         return {k: v[:, 0] for k, v in comps.items()}
 
     def _ofu_z_pair(self, td_target_mode, z_next, buffer_z, states_unh):
@@ -695,10 +695,11 @@ class ObserverAgent(BaseAgent):
             inputs_h = treemap(lambda x: jnp.broadcast_to(x[None], (H,) + x.shape), next_states_unh)
             inputs = self._q_input(inputs_h, acts) if not self._is_discrete else self._q_input(inputs_h)
             z_t = {'epistemic': jnp.broadcast_to(qctx_unh[None], (H,) + qctx_unh.shape)} if qctx_unh is not None else {}
-            p_q = q_target.particles(inputs, z=z_t, bdims=3, **kw)
-            # Disposition reduction: diagonal for ensemble:input (Thompson); broadcast (acts[0]) otherwise.
-            V = p_q.shape[0]
-            target_qs = self._aggregate_targets(p_q[jnp.arange(V), jnp.arange(V)] if _disp(actor_net).ensemble == 'input' else p_q[:, 0])
+            # Disposition reduction: diagonal for ensemble:input (Thompson), evaluated directly by
+            # giving critic head h only actor head h's inputs; broadcast (acts[0]) otherwise.
+            matched = _disp(actor_net).ensemble == 'input'
+            p_q = q_target.particles(inputs, z=z_t, bdims=3, has_ensemble=matched, **kw)
+            target_qs = self._aggregate_targets(p_q if matched else p_q[:, 0])
             # SAC entropy backup (use_entropy_backup_sac toggles the regularizer).
             alpha_v = self._expand_to_heads(alpha, value_heads)
             if self._is_discrete:
@@ -1000,7 +1001,14 @@ class ObserverAgent(BaseAgent):
         inputs = self._q_input(inputs_h, acts) if not self._is_discrete else self._q_input(inputs_h)
         bt = next(iter(s.values())).shape[:2]
         z_critic = self._critic_z_for_actor_eval(actor_net, z_out, batch_shape=(H,) + bt)
-        parts = self.q.component_particles(inputs, z=z_critic, bdims=3, samples=self.q.epistemic_samples, stop_prior_grad=False)
+        # ensemble:input pairs actor head h with critic head h: evaluate only those pairs
+        # rather than all heads on all actor heads followed by a one-hot selection.
+        matched = _disp(actor_net).ensemble == 'input'
+        if matched:
+            z_critic.pop('ensemble')
+        parts = self.q.component_particles(inputs, z=z_critic, bdims=3, samples=self.q.epistemic_samples, stop_prior_grad=False, has_ensemble=matched)
+        if matched:
+            parts = {k: v.reshape((-1, H) + v.shape[1:]) for k, v in parts.items()}  # [S*E, *bt] -> [S, H, *bt]
         if self.use_intrinsic_reward:
             # intr_q is single-headed and broadcast across actor heads; collapse H here.
             parts['intr'] = self.intr_q.particles(inputs, bdims=3)[:, 0]

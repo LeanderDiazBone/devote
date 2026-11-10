@@ -221,7 +221,8 @@ defaults:
   # Actor Critic
   actor: {layers: 3, units: 1024, act: silu, norm: rms, norm_eps: 1e-4, residual: False, hidden_outscale: 1.0, minstd: 0.1, maxstd: 1.0, outscale: 0.01, unimix: 0.01, inputs: [deter, stoch], winit: normal, block_fans: False, block_norm: False}
   critic: {layers: 3, units: 1024, act: silu, norm: rms, norm_eps: 1e-4, residual: False, hidden_outscale: 1.0, dist: symexp_twohot, outscale: 0.0, inputs: [deter, stoch], winit: normal, bins: 255, block_fans: False, block_norm: False}
-  critic_prior: {layers: 2, units: 1024, outscale: 1.0, dist: mse, inputs: [deter, stoch], act: silu, outact: tanh, use_rff: False, length_scale: 1.0, action_independent: False, corrector: False, epistemic: False, epistemic_dim: 8, epistemic_std: 1.0, epistemic_samples: 1, epistemic_key: epistemic, epistemic_shared_contexts: False}
+  critic_prior: {layers: 2, units: 1024, outscale: 1.0, dist: mse, inputs: [deter, stoch], act: silu, outact: tanh, use_rff: False, length_scale: 1.0, action_independent: False, corrector: False, epistemic: False, epistemic_dim: 8, epistemic_std: 1.0, epistemic_samples: 1, epistemic_key: epistemic, epistemic_shared_contexts: False,
+                 norm: inherit, bias_std: 0.0, hidden_outscale: 0.0}  # MLP prior only; inherit/0 keep the critic's
   freeze_wm: False
   freeze_corrector: False
   freeze_all: False

@@ -299,6 +299,7 @@ class EnsembleMLP(nj.Module):
     outact: str = 'none'
     residual: bool = False
     hidden_outscale: float = 1.0
+    length_scale: float = 1.0  # inputs are divided by this (MLP prior analogue of the RFF length scale)
 
     def __init__(self, shape, dist='mse', inputs=['tensor'], **kw):
         shape = (shape,) if isinstance(shape, (int, np.integer)) else shape
@@ -313,7 +314,7 @@ class EnsembleMLP(nj.Module):
         distonly = ('outscale', 'minstd', 'maxstd', 'unimix', 'bins')
         self.lkw = {k: v for k, v in kw.items() if k not in distonly}
         self.lkw['outscale'] = self.hidden_outscale
-        forbidden = ('binit', 'norm', 'act')
+        forbidden = ('binit', 'bias_std', 'norm', 'act')
         self.dkw = {k: v for k, v in kw.items() if k not in forbidden}
         self.lkw_noact = {**self.lkw, 'act': 'none'}
 
@@ -332,6 +333,8 @@ class EnsembleMLP(nj.Module):
         Returns ``[E, *bdims, units]``; reuses the same submodules as ``__call__``.
         """
         feat = self.inputs(inputs, bdims, jaxutils.COMPUTE_DTYPE)   # [..., F]
+        if self.length_scale != 1.0:
+            feat = feat / self.length_scale
         E = int(self.num_heads)
         if has_ensemble:
             assert feat.shape[0] == E, (feat.shape, E)
@@ -469,7 +472,8 @@ class PriorCritic(nj.Module):
                 corrector_ctor = EnsembleMLP
                 corrector_args = (prior_corrector_shape,)
                 corrector_kwargs = dict(
-                    num_heads=num_heads, **prior_corrector_kw)
+                    num_heads=num_heads, length_scale=prior_corrector_length_scale,
+                    **prior_corrector_kw)
             if prior_input_projection is not None:
                 self.prior_corrector = EnsembleInputProjection(
                     corrector_ctor, corrector_args, corrector_kwargs,
@@ -651,9 +655,11 @@ class PriorCritic(nj.Module):
                 minval=-self.epistemic_std, maxval=self.epistemic_std)
         return z
 
-    def particles(self, inputs, *, z=None, bdims=2, samples=None, prior_scale=None, corrector_scale=None, frozen=True, stop_prior_grad=True, include_prior=True, include_corrector=True, include_residual_bootstrap=True):
+    def particles(self, inputs, *, z=None, bdims=2, samples=None, prior_scale=None, corrector_scale=None, frozen=True, stop_prior_grad=True, include_prior=True, include_corrector=True, include_residual_bootstrap=True, has_ensemble=False):
         """All un-fixed particles, shape [P, *batch, *q_shape].
         P = (epistemic samples if epistemic free else 1) * (num_heads if ensemble free else 1).
+        has_ensemble=True: inputs lead with one slice per head and head e only sees slice e
+        (the diagonal of the default all-heads-on-all-inputs evaluation, without computing the rest).
         Kwargs match the legacy `__call__` semantics (frozen=True wraps params in sg)."""
         z = z or {}
         eps = z.get('epistemic')
@@ -668,7 +674,7 @@ class PriorCritic(nj.Module):
             vals = []
             for ctx in eps_contexts:
                 d = self(
-                    inputs, bdims=bdims, has_ensemble=False, epistemic=ctx,
+                    inputs, bdims=bdims, has_ensemble=has_ensemble, epistemic=ctx,
                     prior_scale=prior_scale, corrector_scale=corrector_scale,
                     stop_prior_grad=stop_prior_grad,
                     include_prior=include_prior,
@@ -692,10 +698,11 @@ class PriorCritic(nj.Module):
         finally:
             self.put(params)
 
-    def component_particles(self, inputs, *, z=None, bdims=2, samples=None, prior_scale=None, corrector_scale=None, frozen=True, stop_prior_grad=True):
+    def component_particles(self, inputs, *, z=None, bdims=2, samples=None, prior_scale=None, corrector_scale=None, frozen=True, stop_prior_grad=True, has_ensemble=False):
         """Per-component particles as dict[str, [P, *batch, *q_shape]].
         Keys: 'raw', 'prior', 'corrector', and 'residual_bootstrap' (if present).
-        Each component carries the same leading P axis so they can be combined consistently."""
+        Each component carries the same leading P axis so they can be combined consistently.
+        has_ensemble: as in `particles`."""
         z = z or {}
         eps = z.get('epistemic')
         if eps is not None:
@@ -712,18 +719,18 @@ class PriorCritic(nj.Module):
             comps = {k: [] for k in keys}
             for ctx in eps_contexts:
                 indexed = self._with_epistemic(inputs, bdims, ctx)
-                raw = self.head(inputs, bdims=bdims, has_ensemble=False).mean()
+                raw = self.head(inputs, bdims=bdims, has_ensemble=has_ensemble).mean()
                 prior = jnp.zeros_like(raw)
                 corrector = jnp.zeros_like(raw)
                 if self._prior is not None and p_scale != 0:
-                    prior = p_scale * self._prior(indexed, bdims=bdims, has_ensemble=False).mean()
+                    prior = p_scale * self._prior(indexed, bdims=bdims, has_ensemble=has_ensemble).mean()
                     prior = self._broadcast_shift(sg(prior) if stop_prior_grad else prior, raw)
                 if self.prior_corrector is not None and c_scale != 0:
-                    corrector = c_scale * self.prior_corrector(indexed, bdims=bdims, has_ensemble=False).mean()
+                    corrector = c_scale * self.prior_corrector(indexed, bdims=bdims, has_ensemble=has_ensemble).mean()
                     corrector = self._broadcast_shift(corrector, raw, self._corrector_broadcast_dims)
                 local = {'raw': raw, 'prior': prior, 'corrector': corrector}
                 if has_rb:
-                    rb = p_scale * self.residual_bootstrap(indexed, bdims=bdims, has_ensemble=False).mean()
+                    rb = p_scale * self.residual_bootstrap(indexed, bdims=bdims, has_ensemble=has_ensemble).mean()
                     local['residual_bootstrap'] = rb
                 if 'ensemble' in z:
                     local = {k: self._select_ensemble(v, z['ensemble'])[None] for k, v in local.items()}
@@ -970,6 +977,7 @@ class EnsembleLinear(nj.Module):
     outscale: float = 1.0
     winit: str = 'normal'
     binit: bool = False
+    bias_std: float = 0.0  # >0: biases ~ N(0, bias_std^2) instead of zeros (random-feature MLP prior)
     fan: str = 'in'
     dtype: str = 'default'
     fanin: int = 0
@@ -980,6 +988,9 @@ class EnsembleLinear(nj.Module):
         self.num_heads = int(num_heads)
         self._winit = Initializer(self.winit, self.outscale, self.fan, self.dtype)
         self._binit = Initializer('zeros', 1.0, self.fan, self.dtype)
+        if self.bias_std > 0:
+            dtype = jaxutils.PARAM_DTYPE if self.dtype == 'default' else self.dtype
+            self._binit = lambda shape: (self.bias_std * jax.random.normal(nj.seed(), shape)).astype(dtype)
         self._norm = EnsembleNorm(self.norm, self.num_heads, eps=self.norm_eps, name='norm')
 
     def __call__(self, x):
