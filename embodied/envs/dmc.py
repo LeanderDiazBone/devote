@@ -138,12 +138,13 @@ class DMC(embodied.Env):
           project=project,
       )
     if task in ('hopper_stand', 'hopper_hop'):
-      # position = qpos[1:] = [torso_z, torso_angle, hip, knee, foot].
+      # position = qpos[1:] = [rootz, torso_angle, hip, knee, foot].
       # velocity = qvel        = [vx, vz, wy, vhip, vknee, vfoot].
+      # rootz slides relative to the torso body at z=1, so torso_z = rootz + 1.
       def project(tran):
         p = np.asarray(tran['position'], dtype=np.float64)
         v = np.asarray(tran['velocity'], dtype=np.float64)
-        return np.stack([p[..., 0], v[..., 0]], axis=-1)
+        return np.stack([p[..., 0] + 1.0, v[..., 0]], axis=-1)
       return dict(
           bounds=np.array(
               [[0.0, 1.4], [-3.0, 3.0]], dtype=np.float64),

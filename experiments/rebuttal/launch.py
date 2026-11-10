@@ -27,8 +27,14 @@ METHODS = ['devote', 'sac', 'sombrl', 'ts', 'rnd']
 SEEDS = [0, 1, 2]
 VERIFY_METHODS = ['bro', 'maxinforl']  # reproduce the reference papers on cheetah_run
 REWARD_FREE_PREFIX = 'reward_free_dmc'  # reward_scale=0, only coverage is of interest
-REWARD_FREE_TASKS = TASKS + ['reacher_hard', 'hopper_hop', 'cheetah_run']
-REWARD_FREE_METHODS = METHODS + VERIFY_METHODS
+REWARD_FREE_TASKS = TASKS + ['reacher_hard', 'hopper_hop', 'cheetah_run', 'pointmaze']
+REWARD_FREE_METHODS = METHODS + VERIFY_METHODS + ['maxinforl_shared']  # maxinforl with the shared SAC settings
+DEVOTE_LENGTHS = [f'devote_length_{s}' for s in ['2_5', '5', '7_5']]  # 'devote' itself is length scale 1
+REWARD_FREE_RERUN = {  # second reward-free round
+    'hopper_hop': REWARD_FREE_METHODS + DEVOTE_LENGTHS,  # coverage grid fixed after the first round
+    'cheetah_run': ['maxinforl_shared'],
+    'pointmaze': ['maxinforl', 'maxinforl_shared', 'bro'],
+}
 MPI_GPU = 'A100'  # matched against the slot's GPUs_DeviceName (A100-SXM4-40GB/80GB)
 MPI_EXCLUDE = ['i201', 'g155']  # JAX failed to find the assigned GPU on these nodes
 
@@ -47,13 +53,16 @@ def read_args(path):
 
 def assemble(task, method, seed, logs_dir, verify=False, reward_free=False):
     flags = {}
+    base, _, scale = method.partition('_length_')  # devote_length_2_5: devote + length_scales/2_5.args
     paths = [
         os.path.join(PAPER_DIR, 'common.args'),
         os.path.join(PAPER_DIR, 'diagnostics/trajectories.args'),
         os.path.join(REBUTTAL_DIR, f'tasks/{task}.args'),
-        os.path.join(PAPER_DIR, f'methods/{method}.args'),
+        os.path.join(PAPER_DIR, f'methods/{base}.args'),
         os.path.join(PAPER_DIR, f'seeds/{seed}.args'),
     ]
+    if scale:
+        paths.insert(-1, os.path.join(PAPER_DIR, f'length_scales/{scale}.args'))
     if verify:
         paths = [
             os.path.join(PAPER_DIR, 'common.args'),
@@ -99,6 +108,12 @@ def main(args):
         runs = [
             assemble(task, method, seed, logs_dir, reward_free=True)
             for task in REWARD_FREE_TASKS for method in REWARD_FREE_METHODS for seed in SEEDS
+        ]
+        group = REWARD_FREE_PREFIX
+    if args.reward_free_rerun:
+        runs = [
+            assemble(task, method, seed, logs_dir, reward_free=True)
+            for task, methods in REWARD_FREE_RERUN.items() for method in methods for seed in SEEDS
         ]
         group = REWARD_FREE_PREFIX
 
@@ -171,6 +186,8 @@ if __name__ == '__main__':
                         help='Launch the BRO/MaxInfoRL cheetah_run reproduction runs instead.')
     parser.add_argument('--reward_free', default=False, action='store_true',
                         help='Launch the reward-free coverage runs (all methods) instead.')
+    parser.add_argument('--reward_free_rerun', default=False, action='store_true',
+                        help='Launch the second reward-free round (REWARD_FREE_RERUN) instead.')
     parser.add_argument('--num_cpus', type=int, default=8)
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)
