@@ -109,11 +109,12 @@ class DMC(embodied.Env):
           project=project,
       )
     if task in ('acrobot_swingup', 'acrobot_swingup_sparse'):
-      # orientations = [cos(shoulder), sin(shoulder), cos(elbow), sin(elbow)].
+      # orientations = [sin(upper), sin(lower), cos(upper), cos(lower)]
+      # (dm_control: xmat 'xz' entries of both arms, then 'xx' entries).
       def project(tran):
         o = np.asarray(tran['orientations'], dtype=np.float64)
-        theta1 = np.arctan2(o[..., 1], o[..., 0])
-        theta2 = np.arctan2(o[..., 3], o[..., 2])
+        theta1 = np.arctan2(o[..., 0], o[..., 2])
+        theta2 = np.arctan2(o[..., 1], o[..., 3])
         return np.stack([theta1, theta2], axis=-1)
       return dict(
           bounds=np.array(
@@ -174,6 +175,19 @@ class DMC(embodied.Env):
               [[-5.0, 10.0], [-2.0, 4.0]], dtype=np.float64),
           bins=(25, 25),
           axis_names=('forward_vx', 'vertical_vz'),
+          project=project,
+      )
+    if task in ('reacher_easy', 'reacher_hard'):
+      # position = qpos = [shoulder, wrist]; the shoulder hinge is unlimited, so
+      # wrap it. Joint angles determine the fingertip position.
+      def project(tran):
+        p = np.asarray(tran['position'], dtype=np.float64)
+        return np.stack([np.arctan2(np.sin(p[..., 0]), np.cos(p[..., 0])), p[..., 1]], axis=-1)
+      return dict(
+          bounds=np.array(
+              [[-np.pi, np.pi], [-np.pi, np.pi]], dtype=np.float64),
+          bins=(25, 25),
+          axis_names=('shoulder_angle', 'wrist_angle'),
           project=project,
       )
     if task == 'cup_catch':

@@ -26,6 +26,11 @@ TASKS = ['cartpole_swingup_sparse', 'finger_turn_hard', 'acrobot_swingup_sparse'
 METHODS = ['devote', 'sac', 'sombrl', 'ts', 'rnd']
 SEEDS = [0, 1, 2]
 VERIFY_METHODS = ['bro', 'maxinforl']  # reproduce the reference papers on cheetah_run
+REWARD_FREE_PREFIX = 'reward_free_dmc'  # reward_scale=0, only coverage is of interest
+REWARD_FREE_TASKS = TASKS + ['reacher_hard', 'hopper_hop', 'cheetah_run']
+REWARD_FREE_METHODS = METHODS + VERIFY_METHODS
+MPI_GPU = 'A100'  # matched against the slot's GPUs_DeviceName (A100-SXM4-40GB/80GB)
+MPI_EXCLUDE = ['i201', 'g155']  # JAX failed to find the assigned GPU on these nodes
 
 
 def read_args(path):
@@ -40,7 +45,7 @@ def read_args(path):
     return flags
 
 
-def assemble(task, method, seed, logs_dir, verify=False):
+def assemble(task, method, seed, logs_dir, verify=False, reward_free=False):
     flags = {}
     paths = [
         os.path.join(PAPER_DIR, 'common.args'),
@@ -58,7 +63,10 @@ def assemble(task, method, seed, logs_dir, verify=False):
         ]
     for path in paths:
         flags.update(read_args(path))
-    if not verify:
+    if reward_free:
+        flags['reward_scale'] = '0'
+        flags['group_name'] = f'{REWARD_FREE_PREFIX}_{flags["group_name"]}'
+    elif not verify:
         flags['group_name'] = f'{GROUP_PREFIX}_{flags["group_name"]}'
     flags['exp_name'] = f'{method}_{task}_s{seed}'
     if logs_dir:
@@ -87,6 +95,12 @@ def main(args):
             for method in VERIFY_METHODS for seed in SEEDS
         ]
         group = 'verify'
+    if args.reward_free:
+        runs = [
+            assemble(task, method, seed, logs_dir, reward_free=True)
+            for task in REWARD_FREE_TASKS for method in REWARD_FREE_METHODS for seed in SEEDS
+        ]
+        group = REWARD_FREE_PREFIX
 
     if args.mode == 'local':
         cmds = [f'cd {shlex.quote(REPO_ROOT)} && {cmd}' for _, cmd in runs]
@@ -97,7 +111,7 @@ def main(args):
             out_file = os.path.join(out_dir, flags['exp_name'] + '_%j.out')
             wrap = f'hostname && nvidia-smi && cd {shlex.quote(REPO_ROOT)} && {cmd}'
             cmds.append(
-                f'sbatch --time={args.num_hours}:59:00 --mem-per-cpu=32000 '
+                f'sbatch --time={args.num_hours}:59:00 --mem-per-cpu={32000 // args.num_cpus} '
                 f'--cpus-per-task {args.num_cpus} --account=ls_krausea '
                 f'--gpus=rtx_4090:{args.num_gpus} --output={out_file} '
                 f'--wrap={shlex.quote(wrap)}')
@@ -113,7 +127,10 @@ def main(args):
                 'getenv = HOME,USER,PATH,WANDB_API_KEY,WANDB_ENTITY,WANDB_PROJECT,MUJOCO_GL',
                 f'request_cpus = {args.num_cpus}',
                 f'request_gpus = {args.num_gpus}',
-                f'request_memory = {32000 * args.num_cpus}MB',
+                'request_memory = 32000MB',
+                f'requirements = regexp("{MPI_GPU}", TARGET.GPUs_DeviceName)' + ''.join(
+                    f' && (TARGET.Machine != "{node}.internal.cluster.is.localnet")'
+                    for node in MPI_EXCLUDE),
                 f'output = {base}_$(Cluster).out',
                 f'error = {base}_$(Cluster).err',
                 f'log = {base}_$(Cluster).log',
@@ -152,7 +169,9 @@ if __name__ == '__main__':
     parser.add_argument('--bid', type=int, default=50)
     parser.add_argument('--verify', default=False, action='store_true',
                         help='Launch the BRO/MaxInfoRL cheetah_run reproduction runs instead.')
-    parser.add_argument('--num_cpus', type=int, default=1)
+    parser.add_argument('--reward_free', default=False, action='store_true',
+                        help='Launch the reward-free coverage runs (all methods) instead.')
+    parser.add_argument('--num_cpus', type=int, default=8)
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)
     parser.add_argument('--print', default=False, action='store_true')

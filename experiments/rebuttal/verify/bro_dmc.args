@@ -12,7 +12,7 @@
 --batch_size=128
 --batch_length=2
 --batch_length_eval=2
---train_ratio=2560
+--train_ratio=768
 --run.train_fill=2500
 --use_jax_driver=0
 --log_images=0
