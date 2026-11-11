@@ -39,12 +39,13 @@ MLP_PRIOR_TASKS = ['pointmaze', 'cheetah_run']  # reward-free coverage, DEVOTE w
 MLP_PRIOR_METHODS = [f'mlp_prior_{act}_length_{s}' for act in ['relu', 'sigmoid', 'tanh'] for s in ['0_5', '1', '2_5']]
 SOFT_RESET_TASKS = ['pointmaze', 'cheetah_run']  # reward-free coverage, baselines with DEVOTE's soft resets
 SOFT_RESET_METHODS = [f'{m}_soft_reset' for m in ['sac', 'ts', 'rnd', 'sombrl']]
-COMPLEX_PREFIX = 'complex_control'
+COMPLEX_PREFIX = 'complex_control_v2'  # v2: 192-wide actor/critic, paper Euler launch settings
 COMPLEX_TASKS = ['antmaze', 'pick_and_place']  # task files from experiments/paper/tasks
 COMPLEX_METHODS = [f'devote_length_{s}' for s in ['1', '2_5', '5', '7_5']]
 COMPLEX_BASELINES = VERIFY_METHODS  # paper method args on the complex control tasks, no verify/*_dmc.args
 MPI_GPU = 'A100'  # matched against the slot's GPUs_DeviceName (A100-SXM4-40GB/80GB)
 MPI_EXCLUDE = ['i201', 'g155']  # JAX failed to find the assigned GPU on these nodes
+EULER_EXCLUDE = ['eu-g6-064']  # as in the paper's optimistic-curiosity launcher: persistent CUDA_ERROR_UNKNOWN
 
 
 def read_args(path):
@@ -175,8 +176,8 @@ def main(args):
             out_file = os.path.join(out_dir, flags['exp_name'] + '_%j.out')
             wrap = f'hostname && nvidia-smi && cd {shlex.quote(REPO_ROOT)} && {cmd}'
             cmds.append(
-                f'sbatch --time={args.num_hours}:59:00 --mem-per-cpu={32000 // args.num_cpus} '
-                f'--cpus-per-task {args.num_cpus} --account=ls_krausea '
+                f'sbatch --time={args.num_hours}:59:00 --mem-per-cpu=32000 '  # paper launcher settings
+                f'--cpus-per-task {args.num_cpus or 1} --account=ls_krausea --exclude={",".join(EULER_EXCLUDE)} '
                 f'--gpus=rtx_4090:{args.num_gpus} --output={out_file} '
                 f'--wrap={shlex.quote(wrap)}')
     elif args.mode == 'mpi':
@@ -189,7 +190,7 @@ def main(args):
                 'universe = vanilla',
                 f'executable = {base}.sh',
                 'getenv = HOME,USER,PATH,WANDB_API_KEY,WANDB_ENTITY,WANDB_PROJECT,MUJOCO_GL',
-                f'request_cpus = {args.num_cpus}',
+                f'request_cpus = {args.num_cpus or 8}',
                 f'request_gpus = {args.num_gpus}',
                 'request_memory = 32000MB',
                 f'requirements = regexp("{MPI_GPU}", TARGET.GPUs_DeviceName)' + ''.join(
@@ -245,7 +246,7 @@ if __name__ == '__main__':
                         help='Launch the DEVOTE length-scale sweep on antmaze/pick_and_place instead.')
     parser.add_argument('--complex_baselines', default=False, action='store_true',
                         help='Launch BRO/MaxInfoRL (COMPLEX_BASELINES) on antmaze/pick_and_place instead.')
-    parser.add_argument('--num_cpus', type=int, default=8)
+    parser.add_argument('--num_cpus', type=int, default=None, help='Default: 1 on Euler (paper setting), 8 on MPI.')
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)
     parser.add_argument('--print', default=False, action='store_true')
