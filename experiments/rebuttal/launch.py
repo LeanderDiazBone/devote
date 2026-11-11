@@ -42,6 +42,7 @@ SOFT_RESET_METHODS = [f'{m}_soft_reset' for m in ['sac', 'ts', 'rnd', 'sombrl']]
 COMPLEX_PREFIX = 'complex_control'
 COMPLEX_TASKS = ['antmaze', 'pick_and_place']  # task files from experiments/paper/tasks
 COMPLEX_METHODS = [f'devote_length_{s}' for s in ['1', '2_5', '5', '7_5']]
+COMPLEX_BASELINES = VERIFY_METHODS  # paper method args on the complex control tasks, no verify/*_dmc.args
 MPI_GPU = 'A100'  # matched against the slot's GPUs_DeviceName (A100-SXM4-40GB/80GB)
 MPI_EXCLUDE = ['i201', 'g155']  # JAX failed to find the assigned GPU on these nodes
 
@@ -156,6 +157,12 @@ def main(args):
             for task in COMPLEX_TASKS for method in COMPLEX_METHODS for seed in SEEDS
         ]
         group = COMPLEX_PREFIX
+    if args.complex_baselines:
+        runs = [
+            assemble(task, method, seed, logs_dir)
+            for task in COMPLEX_TASKS for method in COMPLEX_BASELINES for seed in SEEDS
+        ]
+        group = COMPLEX_PREFIX
 
     if args.mode == 'local':
         cmds = [f'cd {shlex.quote(REPO_ROOT)} && {cmd}' for _, cmd in runs]
@@ -234,6 +241,8 @@ if __name__ == '__main__':
                         help='Launch the reward-free baselines with DEVOTE soft resets (SOFT_RESET_METHODS) instead.')
     parser.add_argument('--complex_control', default=False, action='store_true',
                         help='Launch the DEVOTE length-scale sweep on antmaze/pick_and_place instead.')
+    parser.add_argument('--complex_baselines', default=False, action='store_true',
+                        help='Launch BRO/MaxInfoRL (COMPLEX_BASELINES) on antmaze/pick_and_place instead.')
     parser.add_argument('--num_cpus', type=int, default=8)
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)
