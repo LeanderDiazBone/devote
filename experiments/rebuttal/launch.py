@@ -35,6 +35,8 @@ REWARD_FREE_RERUN = {  # second reward-free round
     'cheetah_run': ['maxinforl_shared'],
     'pointmaze': ['maxinforl', 'maxinforl_shared', 'bro'],
 }
+REWARD_PREFIX = 'reward_dmc'  # the reward-free DMC tasks with their task-file reward_scale, paper RL setup
+REWARD_TASKS = TASKS + ['reacher_hard', 'hopper_hop', 'cheetah_run']
 MLP_PRIOR_TASKS = ['pointmaze', 'cheetah_run']  # reward-free coverage, DEVOTE with a tuned MLP prior instead of the RFN
 MLP_PRIOR_METHODS = [f'mlp_prior_{act}_length_{s}' for act in ['relu', 'sigmoid', 'tanh'] for s in ['0_5', '1', '2_5']]
 SOFT_RESET_TASKS = ['pointmaze', 'cheetah_run']  # reward-free coverage, baselines with DEVOTE's soft resets
@@ -60,7 +62,7 @@ def read_args(path):
     return flags
 
 
-def assemble(task, method, seed, logs_dir, verify=False, reward_free=False):
+def assemble(task, method, seed, logs_dir, verify=False, reward_free=False, rewarded=False):
     flags = {}
     soft_reset = method.endswith('_soft_reset')  # sac_soft_reset: sac with the soft resets of common.args
     base, _, scale = method.removesuffix('_soft_reset').partition('_length_')  # devote_length_2_5: devote + length_scales/2_5.args
@@ -99,6 +101,8 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False):
     if reward_free:
         flags['reward_scale'] = '0'
         flags['group_name'] = f'{REWARD_FREE_PREFIX}_{flags["group_name"]}'
+    elif rewarded:
+        flags['group_name'] = f'{REWARD_PREFIX}_{flags["group_name"]}'
     elif task in COMPLEX_TASKS:
         flags['group_name'] = f'{COMPLEX_PREFIX}_{flags["group_name"]}'
     elif not verify:
@@ -166,6 +170,12 @@ def main(args):
             for task in COMPLEX_TASKS for method in COMPLEX_BASELINES for seed in SEEDS
         ]
         group = COMPLEX_PREFIX
+    if args.rewarded:
+        runs = [
+            assemble(task, method, seed, logs_dir, rewarded=True)
+            for task in REWARD_TASKS for method in METHODS for seed in SEEDS
+        ]
+        group = REWARD_PREFIX
 
     if args.mode == 'local':
         cmds = [f'cd {shlex.quote(REPO_ROOT)} && {cmd}' for _, cmd in runs]
@@ -190,7 +200,7 @@ def main(args):
                 'universe = vanilla',
                 f'executable = {base}.sh',
                 'getenv = HOME,USER,PATH,WANDB_API_KEY,WANDB_ENTITY,WANDB_PROJECT,MUJOCO_GL',
-                f'request_cpus = {args.num_cpus or 8}',
+                f'request_cpus = {args.num_cpus or 4}',
                 f'request_gpus = {args.num_gpus}',
                 'request_memory = 32000MB',
                 f'requirements = regexp("{MPI_GPU}", TARGET.GPUs_DeviceName)' + ''.join(
@@ -246,7 +256,9 @@ if __name__ == '__main__':
                         help='Launch the DEVOTE length-scale sweep on antmaze/pick_and_place instead.')
     parser.add_argument('--complex_baselines', default=False, action='store_true',
                         help='Launch BRO/MaxInfoRL (COMPLEX_BASELINES) on antmaze/pick_and_place instead.')
-    parser.add_argument('--num_cpus', type=int, default=None, help='Default: 1 on Euler (paper setting), 8 on MPI.')
+    parser.add_argument('--rewarded', default=False, action='store_true',
+                        help='Launch all METHODS with rewards on the six reward-free DMC tasks (REWARD_TASKS) instead.')
+    parser.add_argument('--num_cpus', type=int, default=None, help='Default: 1 on Euler (paper setting), 4 on MPI.')
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)
     parser.add_argument('--print', default=False, action='store_true')
