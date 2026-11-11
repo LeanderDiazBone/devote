@@ -37,6 +37,11 @@ REWARD_FREE_RERUN = {  # second reward-free round
 }
 MLP_PRIOR_TASKS = ['pointmaze', 'cheetah_run']  # reward-free coverage, DEVOTE with a tuned MLP prior instead of the RFN
 MLP_PRIOR_METHODS = [f'mlp_prior_{act}_length_{s}' for act in ['relu', 'sigmoid', 'tanh'] for s in ['0_5', '1', '2_5']]
+SOFT_RESET_TASKS = ['pointmaze', 'cheetah_run']  # reward-free coverage, baselines with DEVOTE's soft resets
+SOFT_RESET_METHODS = [f'{m}_soft_reset' for m in ['sac', 'ts', 'rnd', 'sombrl']]
+COMPLEX_PREFIX = 'complex_control'
+COMPLEX_TASKS = ['antmaze', 'pick_and_place']  # task files from experiments/paper/tasks
+COMPLEX_METHODS = [f'devote_length_{s}' for s in ['1', '2_5', '5', '7_5']]
 MPI_GPU = 'A100'  # matched against the slot's GPUs_DeviceName (A100-SXM4-40GB/80GB)
 MPI_EXCLUDE = ['i201', 'g155']  # JAX failed to find the assigned GPU on these nodes
 
@@ -55,13 +60,14 @@ def read_args(path):
 
 def assemble(task, method, seed, logs_dir, verify=False, reward_free=False):
     flags = {}
-    base, _, scale = method.partition('_length_')  # devote_length_2_5: devote + length_scales/2_5.args
+    soft_reset = method.endswith('_soft_reset')  # sac_soft_reset: sac with the soft resets of common.args
+    base, _, scale = method.removesuffix('_soft_reset').partition('_length_')  # devote_length_2_5: devote + length_scales/2_5.args
     act = base.partition('mlp_prior_')[2]  # mlp_prior_tanh_length_2_5: devote + mlp_prior/tanh.args at length 2.5
     base = 'devote' if act else base
     paths = [
         os.path.join(PAPER_DIR, 'common.args'),
         os.path.join(PAPER_DIR, 'diagnostics/trajectories.args'),
-        os.path.join(REBUTTAL_DIR, f'tasks/{task}.args'),
+        os.path.join(PAPER_DIR if task in COMPLEX_TASKS else REBUTTAL_DIR, f'tasks/{task}.args'),
         os.path.join(PAPER_DIR, f'methods/{base}.args'),
         os.path.join(PAPER_DIR, f'seeds/{seed}.args'),
     ]
@@ -81,9 +87,16 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False):
     if act:
         flags['prior_length_scale'] = scale.replace('_', '.')
         flags['group_name'] = f'devote_{method}_old_setup'  # paper setup with the TS/RND 2-layer MLP prior; only act and input scale vary
+    if soft_reset:
+        flags['reset_soft_alpha'] = read_args(paths[0])['reset_soft_alpha']  # undo the method's reset_soft_alpha=0
+        if flags['policy_mode'] == 'actor':  # SAC/TS have none of DEVOTE's reset modules; reset their acting actor instead
+            flags['reset_keys'] = flags['reset_keys'].replace('|exp_actor[^/]*)', '|exp_actor[^/]*|actor_sac)')
+        flags['group_name'] += '_soft_reset'
     if reward_free:
         flags['reward_scale'] = '0'
         flags['group_name'] = f'{REWARD_FREE_PREFIX}_{flags["group_name"]}'
+    elif task in COMPLEX_TASKS:
+        flags['group_name'] = f'{COMPLEX_PREFIX}_{flags["group_name"]}'
     elif not verify:
         flags['group_name'] = f'{GROUP_PREFIX}_{flags["group_name"]}'
     flags['exp_name'] = f'{method}_{task}_s{seed}'
@@ -131,6 +144,18 @@ def main(args):
             for task in MLP_PRIOR_TASKS for method in MLP_PRIOR_METHODS for seed in SEEDS
         ]
         group = REWARD_FREE_PREFIX
+    if args.soft_reset:
+        runs = [
+            assemble(task, method, seed, logs_dir, reward_free=True)
+            for task in SOFT_RESET_TASKS for method in SOFT_RESET_METHODS for seed in SEEDS
+        ]
+        group = REWARD_FREE_PREFIX
+    if args.complex_control:
+        runs = [
+            assemble(task, method, seed, logs_dir)
+            for task in COMPLEX_TASKS for method in COMPLEX_METHODS for seed in SEEDS
+        ]
+        group = COMPLEX_PREFIX
 
     if args.mode == 'local':
         cmds = [f'cd {shlex.quote(REPO_ROOT)} && {cmd}' for _, cmd in runs]
@@ -205,6 +230,10 @@ if __name__ == '__main__':
                         help='Launch the second reward-free round (REWARD_FREE_RERUN) instead.')
     parser.add_argument('--mlp_prior', default=False, action='store_true',
                         help='Launch the reward-free MLP-prior sweep (MLP_PRIOR_METHODS) instead.')
+    parser.add_argument('--soft_reset', default=False, action='store_true',
+                        help='Launch the reward-free baselines with DEVOTE soft resets (SOFT_RESET_METHODS) instead.')
+    parser.add_argument('--complex_control', default=False, action='store_true',
+                        help='Launch the DEVOTE length-scale sweep on antmaze/pick_and_place instead.')
     parser.add_argument('--num_cpus', type=int, default=8)
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)
