@@ -85,6 +85,8 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False):
         ]
     for path in paths:
         flags.update(read_args(path))
+    if (reward_free or task in COMPLEX_TASKS) and base != 'bro':  # paper pure-exploration/complex-control runs used 192-wide actor/critic; BRO keeps its own widths
+        flags['actor_units'] = flags['critic_units'] = '192'
     if act:
         flags['prior_length_scale'] = scale.replace('_', '.')
         flags['group_name'] = f'devote_{method}_old_setup'  # paper setup with the TS/RND 2-layer MLP prior; only act and input scale vary
