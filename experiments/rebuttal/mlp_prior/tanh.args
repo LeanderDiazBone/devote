@@ -2,7 +2,5 @@
 --prior_layers=2
 --prior_units=50
 --prior_act=tanh
---critic_prior.norm=none
---critic_prior.bias_std=1.0
---critic_prior.hidden_outscale=2.828
---critic_prior.outscale=2.828
+--actor_units=192
+--critic_units=192

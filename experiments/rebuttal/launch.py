@@ -80,7 +80,7 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False):
         flags.update(read_args(path))
     if act:
         flags['prior_length_scale'] = scale.replace('_', '.')
-        flags['group_name'] = f'devote_{method}'
+        flags['group_name'] = f'devote_{method}_old_setup'  # paper setup with the TS/RND 2-layer MLP prior; only act and input scale vary
     if reward_free:
         flags['reward_scale'] = '0'
         flags['group_name'] = f'{REWARD_FREE_PREFIX}_{flags["group_name"]}'

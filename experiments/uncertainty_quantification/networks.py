@@ -2,7 +2,7 @@
 
 Two model families, both ensembled by construction (use K=1 for the
 single-model case):
-    EnsembleMLP        K parallel ReLU MLPs.
+    EnsembleMLP        K parallel MLPs (ReLU unless `act` is set).
     EnsembleRFN        K parallel Randomized Fourier Networks (fixed RBF
                        random features + trainable linear head).
 
@@ -44,21 +44,25 @@ class EnsembleLinear(nn.Module):
 
 
 class EnsembleMLP(nn.Module):
-    """K parallel ReLU MLPs, returning `[K, B]` predictions in one batched pass."""
+    """K parallel MLPs, returning `[K, B]` predictions in one batched pass.
+    Inputs are divided by `length_scale` (the MLP analogue of the RFN length scale)."""
     def __init__(self, K: int, in_dim: int, *, width: int = 100,
-                 n_hidden: int = 2, out_dim: int = 1):
+                 n_hidden: int = 2, out_dim: int = 1, act: str = "relu",
+                 length_scale: float = 1.0):
         super().__init__()
         self.K = K
+        self.length_scale = length_scale
+        act_cls = {"relu": nn.ReLU, "sigmoid": nn.Sigmoid, "tanh": nn.Tanh}[act]
         layers: list[nn.Module] = []
         d = in_dim
         for _ in range(n_hidden):
-            layers += [EnsembleLinear(K, d, width), nn.ReLU()]
+            layers += [EnsembleLinear(K, d, width), act_cls()]
             d = width
         layers.append(EnsembleLinear(K, d, out_dim))
         self.net = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x).squeeze(-1)
+        return self.net(x / self.length_scale).squeeze(-1)
 
 
 class EnsembleRFN(nn.Module):

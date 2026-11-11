@@ -200,7 +200,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--n-samples", type=int, default=0, help="MC z samples for input/output (default: K)")
     parser.add_argument("--width", type=int, default=100, help="MLP hidden width (mlp arch only)")
     parser.add_argument("--depth", type=int, default=2, help="MLP number of hidden layers (mlp arch only)")
-    parser.add_argument("--length-scale", type=float, default=1.0, help="RBF length scale for RFN priors (ignored for MLP)")
+    parser.add_argument("--act", choices=["relu", "sigmoid", "tanh"], default="relu", help="MLP activation (mlp arch only)")
+    parser.add_argument("--length-scale", type=float, default=1.0, help="RBF length scale for RFN priors; MLP inputs are divided by it")
     parser.add_argument("--epochs", type=int, default=500)
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--lr", type=float, default=1e-3)
@@ -215,10 +216,15 @@ def main(argv: list[str] | None = None) -> None:
     if args.arch == "rfn":
         arch_kwargs = {"length_scale": args.length_scale}
     else:
-        arch_kwargs = {"width": args.width, "n_hidden": args.depth}
+        arch_kwargs = {"width": args.width, "n_hidden": args.depth,
+                       "act": args.act, "length_scale": args.length_scale}
     tag = [args.arch]
     if args.arch == "mlp":
         tag.append(f"w{args.width}d{args.depth}")
+        if args.act != "relu":  # defaults keep the existing output paths
+            tag.append(args.act)
+        if args.length_scale != 1.0:
+            tag.append(f"l{args.length_scale:g}")
     if args.mode != "ensemble":
         tag.append(args.mode)
         if args.mode == "input":
