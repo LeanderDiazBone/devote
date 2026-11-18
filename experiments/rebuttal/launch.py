@@ -45,6 +45,7 @@ COMPLEX_PREFIX = 'complex_control_v2'  # v2: 192-wide actor/critic, paper Euler 
 COMPLEX_TASKS = ['antmaze', 'pick_and_place']  # task files from experiments/paper/tasks
 COMPLEX_METHODS = [f'devote_length_{s}' for s in ['1', '2_5', '5', '7_5']]
 COMPLEX_BASELINES = VERIFY_METHODS  # paper method args on the complex control tasks, no verify/*_dmc.args
+COMPLEX_SHARED_BASE_METHODS = ['devote_actor_heads_1_shared_base']  # task-file length scale (antmaze 7.5, pick_and_place 1.5)
 DEVOTE_FIX_TASKS = ['cheetah_run', 'hopper_hop']  # rewarded DMC tasks where DEVOTE's 8-head exploit actor degraded
 DEVOTE_FIX_METHODS = [f'devote_exploit_kl_{w}' for w in ['0_01', '0_1', '1']] + [  # devote + exploit_kl_reg=w
     'devote_actor_heads_1', 'devote_length_5']  # single exploit actor on the 8-head critic; prior length scale 5
@@ -246,6 +247,12 @@ def main(args):
             for task in SHARED_BASE_REST_TASKS for method in SHARED_BASE_METHODS for seed in SEEDS
         ]
         group = REWARD_PREFIX
+    if args.complex_shared_base:
+        runs = [
+            assemble(task, method, seed, logs_dir)
+            for task in COMPLEX_TASKS for method in COMPLEX_SHARED_BASE_METHODS for seed in SEEDS
+        ]
+        group = COMPLEX_PREFIX
     if args.rewarded:
         runs = [
             assemble(task, method, seed, logs_dir, rewarded=True)
@@ -346,6 +353,8 @@ if __name__ == '__main__':
                         help='Launch rewarded DEVOTE with one shared base critic and one actor head (SHARED_BASE_METHODS) instead.')
     parser.add_argument('--shared_base_rest', default=False, action='store_true',
                         help='Launch SHARED_BASE_METHODS on the remaining rewarded DMC tasks (SHARED_BASE_REST_TASKS) instead.')
+    parser.add_argument('--complex_shared_base', default=False, action='store_true',
+                        help='Launch shared-base DEVOTE (COMPLEX_SHARED_BASE_METHODS) on antmaze/pick_and_place instead.')
     parser.add_argument('--num_cpus', type=int, default=None, help='Default: 1 on Euler (paper setting), 4 on MPI.')
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)
