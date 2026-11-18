@@ -298,6 +298,7 @@ defaults:
   corrector_update_every: 1   # Apply corrector (res+cor)^2 loss every N train steps (uses `res` batch)
   ac_update_every: 1          # Apply all other losses (wm, base TD, residual bootstrap, actor, alpha, intrinsic) every N train steps (uses `ac` batch)
   actor_kl_reg: 0.0           # KL regularization weight for explore/intr actor toward reference (exploit) actor
+  exploit_kl_reg: 0.0         # KL(exploit || exp_actor) weight on the exploit actor, added to its SAC entropy term (policy_mode=exp_actor)
   exp_alpha_scale: 1.0        # Multiplicative scale on exp_actor's entropy temperature (set 0.0 to disable entropy bonus)
   pc_target_actor: actor      # actor | exp_actor — actor used to bootstrap the prior_corrector TD target on self.q
   td_target_actor: actor      # actor | exp_actor — actor used to bootstrap the base TD target on self.q (set to exp_actor in policy_eval to evaluate V^exp_actor)

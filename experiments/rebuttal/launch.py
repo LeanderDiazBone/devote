@@ -45,6 +45,9 @@ COMPLEX_PREFIX = 'complex_control_v2'  # v2: 192-wide actor/critic, paper Euler 
 COMPLEX_TASKS = ['antmaze', 'pick_and_place']  # task files from experiments/paper/tasks
 COMPLEX_METHODS = [f'devote_length_{s}' for s in ['1', '2_5', '5', '7_5']]
 COMPLEX_BASELINES = VERIFY_METHODS  # paper method args on the complex control tasks, no verify/*_dmc.args
+DEVOTE_FIX_TASKS = ['cheetah_run', 'hopper_hop']  # rewarded DMC tasks where DEVOTE's 8-head exploit actor degraded
+DEVOTE_FIX_METHODS = [f'devote_exploit_kl_{w}' for w in ['0_01', '0_1', '1']] + [  # devote + exploit_kl_reg=w
+    'devote_actor_heads_1', 'devote_length_5']  # single exploit actor on the 8-head critic; prior length scale 5
 MPI_GPU = 'A100'  # matched against the slot's GPUs_DeviceName (A100-SXM4-40GB/80GB)
 MPI_EXCLUDE = ['i201', 'g155']  # JAX failed to find the assigned GPU on these nodes
 EULER_EXCLUDE = ['eu-g6-064']  # as in the paper's optimistic-curiosity launcher: persistent CUDA_ERROR_UNKNOWN
@@ -66,6 +69,8 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False, rewa
     flags = {}
     soft_reset = method.endswith('_soft_reset')  # sac_soft_reset: sac with the soft resets of common.args
     base, _, scale = method.removesuffix('_soft_reset').partition('_length_')  # devote_length_2_5: devote + length_scales/2_5.args
+    base, _, kl = base.partition('_exploit_kl_')  # devote_exploit_kl_0_1: devote with exploit_kl_reg=0.1
+    base, _, heads = base.partition('_actor_heads_')  # devote_actor_heads_1: devote with actor_heads=1
     act = base.partition('mlp_prior_')[2]  # mlp_prior_tanh_length_2_5: devote + mlp_prior/tanh.args at length 2.5
     base = 'devote' if act else base
     paths = [
@@ -93,6 +98,12 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False, rewa
     if act:
         flags['prior_length_scale'] = scale.replace('_', '.')
         flags['group_name'] = f'devote_{method}_old_setup'  # paper setup with the TS/RND 2-layer MLP prior; only act and input scale vary
+    if kl:
+        flags['exploit_kl_reg'] = kl.replace('_', '.')
+        flags['group_name'] += f'_exploit_kl_{kl}'
+    if heads:
+        flags['actor_heads'] = heads
+        flags['group_name'] += f'_actor_heads_{heads}'
     if soft_reset:
         flags['reset_soft_alpha'] = read_args(paths[0])['reset_soft_alpha']  # undo the method's reset_soft_alpha=0
         if flags['policy_mode'] == 'actor':  # SAC/TS have none of DEVOTE's reset modules; reset their acting actor instead
@@ -170,6 +181,12 @@ def main(args):
             for task in COMPLEX_TASKS for method in COMPLEX_BASELINES for seed in SEEDS
         ]
         group = COMPLEX_PREFIX
+    if args.devote_fix:
+        runs = [
+            assemble(task, method, seed, logs_dir, rewarded=True)
+            for task in DEVOTE_FIX_TASKS for method in DEVOTE_FIX_METHODS for seed in SEEDS
+        ]
+        group = REWARD_PREFIX
     if args.rewarded:
         runs = [
             assemble(task, method, seed, logs_dir, rewarded=True)
@@ -258,6 +275,8 @@ if __name__ == '__main__':
                         help='Launch BRO/MaxInfoRL (COMPLEX_BASELINES) on antmaze/pick_and_place instead.')
     parser.add_argument('--rewarded', default=False, action='store_true',
                         help='Launch all METHODS with rewards on the six reward-free DMC tasks (REWARD_TASKS) instead.')
+    parser.add_argument('--devote_fix', default=False, action='store_true',
+                        help='Launch the rewarded DEVOTE fixes (DEVOTE_FIX_METHODS: exploit KL sweep, actor_heads=1, length 5) on DEVOTE_FIX_TASKS instead.')
     parser.add_argument('--num_cpus', type=int, default=None, help='Default: 1 on Euler (paper setting), 4 on MPI.')
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)

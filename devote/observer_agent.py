@@ -989,7 +989,7 @@ class ObserverAgent(BaseAgent):
             base = base + 2 * (self._select_action_values(q_all.mean(), actions_unh) - targets) * pc_residual
         return base, pc
 
-    def _compute_actor_alpha_losses(self, actor_net, states, weight, retnorm, log_alpha, update=True, actor_heads=1, objective='exploit', logging_prefix='exploit', reg_actor=None, alpha_scale=1.0):
+    def _compute_actor_alpha_losses(self, actor_net, states, weight, retnorm, log_alpha, update=True, actor_heads=1, objective='exploit', logging_prefix='exploit', reg_actor=None, alpha_scale=1.0, kl_reg=None):
         metrics = {}
         alpha = alpha_scale * jnp.exp(sg(log_alpha.read()))[:, None, None]
         H = actor_heads
@@ -1044,8 +1044,9 @@ class ObserverAgent(BaseAgent):
         #   (b) the β / τ dual losses, where the KL is sg'd and gradient flows only through
         #       _beta_with_grad / _tau_with_grad.
         # τ and β are tuned simultaneously against the same `beta_target_kl`.
-        learn_duals = getattr(self, 'learn_beta', False) and reg_actor is not None
-        use_kl_reg = reg_actor is not None and (self.learn_tau or self.config.actor_kl_reg > 0)
+        # kl_reg (exploit actor toward exp_actor): fixed weight, added on top of the SAC entropy term.
+        learn_duals = getattr(self, 'learn_beta', False) and reg_actor is not None and kl_reg is None
+        use_kl_reg = reg_actor is not None and (kl_reg is not None or self.learn_tau or self.config.actor_kl_reg > 0)
         if use_kl_reg or learn_duals:
             reg_dist = self._frozen_call(reg_actor, lambda r: r(s, bdims=2, has_ensemble=False))
             if self._is_discrete:
@@ -1066,12 +1067,12 @@ class ObserverAgent(BaseAgent):
             kl_term = kl_per_r.min(0)                                # nearest-head KL, [H, B, T]
 
         if use_kl_reg:
-            tau_w = self._current_tau() if self.learn_tau else jnp.asarray(self.config.actor_kl_reg, f32)
+            tau_w = jnp.asarray(kl_reg, f32) if kl_reg is not None else self._current_tau() if self.learn_tau else jnp.asarray(self.config.actor_kl_reg, f32)
             actor_loss += tau_w * kl_term
             metrics[f'{logging_prefix}/kl_reg'] = kl_term.mean()
             metrics[f'{logging_prefix}/kl_reg_mean_heads'] = kl_per_r.mean(0).mean()
             metrics[f'{logging_prefix}/tau'] = tau_w
-        else:
+        if not use_kl_reg or kl_reg is not None:
             actor_loss += -alpha * entropy
 
         alpha_loss = jnp.exp(log_alpha.read())[:, None, None] * sg(entropy - self.target_entropy)
@@ -1296,7 +1297,8 @@ class ObserverAgent(BaseAgent):
             mc.update(info_gain_metrics)
 
         if not self.use_candidate_policy:
-            actor_losses, actor_metrics = self._compute_actor_alpha_losses(actor_net=self.actor, states=sg(states), weight=batch['weight'], update=update, retnorm=self.retnorm, log_alpha=self.log_alpha, actor_heads=self.actor_heads, objective='exploit', logging_prefix='exploit')
+            exploit_kl = dict(reg_actor=self.exp_actor, kl_reg=self.config.exploit_kl_reg) if self.use_exp_actor and self.config.exploit_kl_reg > 0 else {}
+            actor_losses, actor_metrics = self._compute_actor_alpha_losses(actor_net=self.actor, states=sg(states), weight=batch['weight'], update=update, retnorm=self.retnorm, log_alpha=self.log_alpha, actor_heads=self.actor_heads, objective='exploit', logging_prefix='exploit', **exploit_kl)
             actor_losses = {k: v * actor_update_mask for k, v in actor_losses.items()}
             wm_losses.update(actor_losses)
             mc.update(actor_metrics)
