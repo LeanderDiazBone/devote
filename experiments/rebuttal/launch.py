@@ -55,6 +55,7 @@ BETA_METHODS = [f'devote_beta_{b}' for b in ['0', '0_1', '0_3']]  # devote + bet
 CRITIC_ENS_TASKS = ['cheetah_run', 'hopper_hop']  # does the 8-head critic ensemble cause the cheetah drop?
 CRITIC_ENS_METHODS = ['devote_actor_heads_1_boot_prob_1', 'devote_num_heads_1']  # unmasked 8-head critic; single critic head
 SHARED_BASE_TASKS = CRITIC_ENS_TASKS
+SHARED_BASE_REST_TASKS = [t for t in REWARD_TASKS if t not in SHARED_BASE_TASKS]  # the other rewarded DMC tasks
 SHARED_BASE_METHODS = ['devote_actor_heads_1_shared_base']  # one base critic + one actor; 8 prior/corrector/residual heads
 MPI_GPU = 'A100'  # matched against the slot's GPUs_DeviceName (A100-SXM4-40GB/80GB)
 MPI_EXCLUDE = ['i201', 'g155']  # JAX failed to find the assigned GPU on these nodes
@@ -239,6 +240,12 @@ def main(args):
             for task in SHARED_BASE_TASKS for method in SHARED_BASE_METHODS for seed in SEEDS
         ]
         group = REWARD_PREFIX
+    if args.shared_base_rest:
+        runs = [
+            assemble(task, method, seed, logs_dir, rewarded=True)
+            for task in SHARED_BASE_REST_TASKS for method in SHARED_BASE_METHODS for seed in SEEDS
+        ]
+        group = REWARD_PREFIX
     if args.rewarded:
         runs = [
             assemble(task, method, seed, logs_dir, rewarded=True)
@@ -337,6 +344,8 @@ if __name__ == '__main__':
                         help='Launch rewarded DEVOTE critic-ensemble ablations (CRITIC_ENS_METHODS) on CRITIC_ENS_TASKS instead.')
     parser.add_argument('--shared_base', default=False, action='store_true',
                         help='Launch rewarded DEVOTE with one shared base critic and one actor head (SHARED_BASE_METHODS) instead.')
+    parser.add_argument('--shared_base_rest', default=False, action='store_true',
+                        help='Launch SHARED_BASE_METHODS on the remaining rewarded DMC tasks (SHARED_BASE_REST_TASKS) instead.')
     parser.add_argument('--num_cpus', type=int, default=None, help='Default: 1 on Euler (paper setting), 4 on MPI.')
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)
