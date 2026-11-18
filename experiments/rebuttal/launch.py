@@ -58,6 +58,9 @@ CRITIC_ENS_METHODS = ['devote_actor_heads_1_boot_prob_1', 'devote_num_heads_1'] 
 SHARED_BASE_TASKS = CRITIC_ENS_TASKS
 SHARED_BASE_REST_TASKS = [t for t in REWARD_TASKS if t not in SHARED_BASE_TASKS]  # the other rewarded DMC tasks
 SHARED_BASE_METHODS = ['devote_actor_heads_1_shared_base']  # one base critic + one actor; 8 prior/corrector/residual heads
+SHARED_BASE_FIX_TASKS = ['acrobot_swingup_sparse']  # shared-base critic overestimated far past the value bound here
+SHARED_BASE_FIX_METHODS = ['devote_actor_heads_1_shared_base_pessimism_0_5',  # double-Q target with pessimism=0.5
+                           'devote_actor_heads_1_shared_base_critic_reset']  # soft resets also hit the base critic head
 MPI_GPU = 'A100'  # matched against the slot's GPUs_DeviceName (A100-SXM4-40GB/80GB)
 MPI_EXCLUDE = ['i201', 'g155']  # JAX failed to find the assigned GPU on these nodes
 EULER_EXCLUDE = ['eu-g6-064']  # as in the paper's optimistic-curiosity launcher: persistent CUDA_ERROR_UNKNOWN
@@ -81,6 +84,8 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False, rewa
     no_reset = method.endswith('_no_reset')  # devote_no_reset: devote without the soft resets of common.args
     base, _, scale = method.removesuffix('_soft_reset').removesuffix('_no_reset').partition('_length_')  # devote_length_2_5: devote + length_scales/2_5.args
     base, _, kl = base.partition('_exploit_kl_')  # devote_exploit_kl_0_1: devote with exploit_kl_reg=0.1
+    base, _, pessimism = base.partition('_pessimism_')  # ..._shared_base_pessimism_0_5: ... with pessimism=0.5
+    base, critic_reset, _ = base.partition('_critic_reset')  # ..._shared_base_critic_reset: reset_keys also match q*/head
     base, shared_base, _ = base.partition('_shared_base')  # devote_actor_heads_1_shared_base: ... with shared_base_critic=1
     base, _, boot = base.partition('_boot_prob_')  # devote_actor_heads_1_boot_prob_1: ... with boot_prob=1
     base, _, heads = base.partition('_actor_heads_')  # devote_actor_heads_1: devote with actor_heads=1
@@ -128,6 +133,12 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False, rewa
     if shared_base:
         flags['shared_base_critic'] = '1'
         flags['group_name'] += '_shared_base'
+    if pessimism:
+        flags['pessimism'] = pessimism.replace('_', '.')
+        flags['group_name'] += f'_pessimism_{pessimism}'
+    if critic_reset:
+        flags['reset_keys'] = flags['reset_keys'].replace('q[^/]*/residual_bootstrap', 'q[^/]*/(head|residual_bootstrap)')
+        flags['group_name'] += '_critic_reset'
     if critic_heads:
         flags['num_heads'] = flags['actor_heads'] = critic_heads
         flags['group_name'] += f'_num_heads_{critic_heads}'
@@ -253,6 +264,12 @@ def main(args):
             for task in COMPLEX_TASKS for method in COMPLEX_SHARED_BASE_METHODS for seed in SEEDS
         ]
         group = COMPLEX_PREFIX
+    if args.shared_base_fix:
+        runs = [
+            assemble(task, method, seed, logs_dir, rewarded=True)
+            for task in SHARED_BASE_FIX_TASKS for method in SHARED_BASE_FIX_METHODS for seed in SEEDS
+        ]
+        group = REWARD_PREFIX
     if args.rewarded:
         runs = [
             assemble(task, method, seed, logs_dir, rewarded=True)
@@ -355,6 +372,8 @@ if __name__ == '__main__':
                         help='Launch SHARED_BASE_METHODS on the remaining rewarded DMC tasks (SHARED_BASE_REST_TASKS) instead.')
     parser.add_argument('--complex_shared_base', default=False, action='store_true',
                         help='Launch shared-base DEVOTE (COMPLEX_SHARED_BASE_METHODS) on antmaze/pick_and_place instead.')
+    parser.add_argument('--shared_base_fix', default=False, action='store_true',
+                        help='Launch shared-base DEVOTE with pessimism / base-critic resets (SHARED_BASE_FIX_METHODS) on SHARED_BASE_FIX_TASKS instead.')
     parser.add_argument('--num_cpus', type=int, default=None, help='Default: 1 on Euler (paper setting), 4 on MPI.')
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)
