@@ -54,6 +54,8 @@ BETA_TASKS = ['cheetah_run', 'hopper_hop']  # does the exploration bonus cause t
 BETA_METHODS = [f'devote_beta_{b}' for b in ['0', '0_1', '0_3']]  # devote + beta=b
 CRITIC_ENS_TASKS = ['cheetah_run', 'hopper_hop']  # does the 8-head critic ensemble cause the cheetah drop?
 CRITIC_ENS_METHODS = ['devote_actor_heads_1_boot_prob_1', 'devote_num_heads_1']  # unmasked 8-head critic; single critic head
+SHARED_BASE_TASKS = CRITIC_ENS_TASKS
+SHARED_BASE_METHODS = ['devote_actor_heads_1_shared_base']  # one base critic + one actor; 8 prior/corrector/residual heads
 MPI_GPU = 'A100'  # matched against the slot's GPUs_DeviceName (A100-SXM4-40GB/80GB)
 MPI_EXCLUDE = ['i201', 'g155']  # JAX failed to find the assigned GPU on these nodes
 EULER_EXCLUDE = ['eu-g6-064']  # as in the paper's optimistic-curiosity launcher: persistent CUDA_ERROR_UNKNOWN
@@ -77,6 +79,7 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False, rewa
     no_reset = method.endswith('_no_reset')  # devote_no_reset: devote without the soft resets of common.args
     base, _, scale = method.removesuffix('_soft_reset').removesuffix('_no_reset').partition('_length_')  # devote_length_2_5: devote + length_scales/2_5.args
     base, _, kl = base.partition('_exploit_kl_')  # devote_exploit_kl_0_1: devote with exploit_kl_reg=0.1
+    base, shared_base, _ = base.partition('_shared_base')  # devote_actor_heads_1_shared_base: ... with shared_base_critic=1
     base, _, boot = base.partition('_boot_prob_')  # devote_actor_heads_1_boot_prob_1: ... with boot_prob=1
     base, _, heads = base.partition('_actor_heads_')  # devote_actor_heads_1: devote with actor_heads=1
     base, _, critic_heads = base.partition('_num_heads_')  # devote_num_heads_1: one critic head (and one actor head)
@@ -120,6 +123,9 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False, rewa
     if boot:
         flags['boot_prob'] = boot.replace('_', '.')
         flags['group_name'] += f'_boot_prob_{boot}'
+    if shared_base:
+        flags['shared_base_critic'] = '1'
+        flags['group_name'] += '_shared_base'
     if critic_heads:
         flags['num_heads'] = flags['actor_heads'] = critic_heads
         flags['group_name'] += f'_num_heads_{critic_heads}'
@@ -227,6 +233,12 @@ def main(args):
             for task in CRITIC_ENS_TASKS for method in CRITIC_ENS_METHODS for seed in SEEDS
         ]
         group = REWARD_PREFIX
+    if args.shared_base:
+        runs = [
+            assemble(task, method, seed, logs_dir, rewarded=True)
+            for task in SHARED_BASE_TASKS for method in SHARED_BASE_METHODS for seed in SEEDS
+        ]
+        group = REWARD_PREFIX
     if args.rewarded:
         runs = [
             assemble(task, method, seed, logs_dir, rewarded=True)
@@ -323,6 +335,8 @@ if __name__ == '__main__':
                         help='Launch rewarded DEVOTE with the exploration-bonus scale sweep (BETA_METHODS) on BETA_TASKS instead.')
     parser.add_argument('--critic_ens', default=False, action='store_true',
                         help='Launch rewarded DEVOTE critic-ensemble ablations (CRITIC_ENS_METHODS) on CRITIC_ENS_TASKS instead.')
+    parser.add_argument('--shared_base', default=False, action='store_true',
+                        help='Launch rewarded DEVOTE with one shared base critic and one actor head (SHARED_BASE_METHODS) instead.')
     parser.add_argument('--num_cpus', type=int, default=None, help='Default: 1 on Euler (paper setting), 4 on MPI.')
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)

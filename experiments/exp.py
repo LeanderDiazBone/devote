@@ -218,6 +218,7 @@ def experiment(
         actor_update_warmup: int = 0,
         actor_kl_reg: float = 0.0,
         exploit_kl_reg: float = 0.0,
+        shared_base_critic: bool = False,
         exp_alpha_scale: float = 1.0,
         pc_target_actor: str = 'actor',
         td_target_actor: str = 'actor',
@@ -468,6 +469,7 @@ def experiment(
         'actor_update_warmup': actor_update_warmup,
         'actor_kl_reg': actor_kl_reg,
         'exploit_kl_reg': exploit_kl_reg,
+        'shared_base_critic': bool(shared_base_critic),
         'exp_alpha_scale': exp_alpha_scale,
         'loss_scales.exp_alpha': exp_alpha_scale,
         'pc_target_actor': pc_target_actor,
@@ -928,6 +930,7 @@ def main(args):
         actor_update_warmup=args.actor_update_warmup,
         actor_kl_reg=args.actor_kl_reg,
         exploit_kl_reg=args.exploit_kl_reg,
+        shared_base_critic=args.shared_base_critic,
         exp_alpha_scale=args.exp_alpha_scale,
         pc_target_actor=args.pc_target_actor,
         td_target_actor=args.td_target_actor,
@@ -1133,6 +1136,7 @@ if __name__ == '__main__':
     parser.add_argument('--actor_update_warmup', type=int, default=0)
     parser.add_argument('--actor_kl_reg', type=float, default=0.0)
     parser.add_argument('--exploit_kl_reg', type=float, default=0.0)
+    parser.add_argument('--shared_base_critic', type=int, default=0)
     parser.add_argument('--exp_alpha_scale', type=float, default=1.0)
     parser.add_argument('--pc_target_actor', type=str, default='actor')  # actor | exp_actor
     parser.add_argument('--td_target_actor', type=str, default='actor')  # actor | exp_actor

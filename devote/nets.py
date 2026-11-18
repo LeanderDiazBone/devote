@@ -300,6 +300,7 @@ class EnsembleMLP(nj.Module):
     residual: bool = False
     hidden_outscale: float = 1.0
     length_scale: float = 1.0  # inputs are divided by this (MLP prior analogue of the RFF length scale)
+    shared: bool = False  # tie all heads to one parameter set (outputs keep the [E, ...] layout)
 
     def __init__(self, shape, dist='mse', inputs=['tensor'], **kw):
         shape = (shape,) if isinstance(shape, (int, np.integer)) else shape
@@ -316,6 +317,8 @@ class EnsembleMLP(nj.Module):
         self.lkw['outscale'] = self.hidden_outscale
         forbidden = ('binit', 'bias_std', 'norm', 'act')
         self.dkw = {k: v for k, v in kw.items() if k not in forbidden}
+        if self.shared:
+            self.lkw['shared'] = self.dkw['shared'] = True
         self.lkw_noact = {**self.lkw, 'act': 'none'}
 
     def __call__(self, inputs, bdims=2, training=False, has_ensemble=False, temperature=1.0):
@@ -434,13 +437,15 @@ class PriorCritic(nj.Module):
             epistemic_samples=1, epistemic_key='epistemic',
             epistemic_shared_contexts=False,
             residual_bootstrap=False, residual_bootstrap_kw=None, residual_bootstrap_shape=None,
+            shared_head=False,
             **head_kw):
         shape = (shape,) if isinstance(shape, (int, np.integer)) else tuple(shape)
         prior_shape = (prior_shape,) if isinstance(prior_shape, (int, np.integer)) else tuple(prior_shape)
         prior_corrector_shape = prior_shape if prior_corrector_shape is None else prior_corrector_shape
         prior_corrector_shape = (prior_corrector_shape,) if isinstance(prior_corrector_shape, (int, np.integer)) else tuple(prior_corrector_shape)
         self.shape = shape
-        self.head = EnsembleMLP(shape, num_heads=num_heads, name='head', **head_kw)
+        # shared_head: one base critic for all heads; prior / corrector / residual_bootstrap stay per head.
+        self.head = EnsembleMLP(shape, num_heads=num_heads, name='head', **head_kw, **({'shared': True} if shared_head else {}))
         self.num_heads = int(num_heads)
         self._prior = prior
         self._broadcast_dims = max(0, len(shape) - len(prior_shape))
@@ -982,6 +987,7 @@ class EnsembleLinear(nj.Module):
     dtype: str = 'default'
     fanin: int = 0
     norm_eps: float = 1e-4
+    shared: bool = False  # one set of parameters broadcast to all E heads (outputs keep the [E, ...] layout)
 
     def __init__(self, units, num_heads: int):
         self.units = (units,) if isinstance(units, int) else tuple(units)
@@ -991,13 +997,16 @@ class EnsembleLinear(nj.Module):
         if self.bias_std > 0:
             dtype = jaxutils.PARAM_DTYPE if self.dtype == 'default' else self.dtype
             self._binit = lambda shape: (self.bias_std * jax.random.normal(nj.seed(), shape)).astype(dtype)
-        self._norm = EnsembleNorm(self.norm, self.num_heads, eps=self.norm_eps, name='norm')
+        self._norm = EnsembleNorm(self.norm, 1 if self.shared else self.num_heads, eps=self.norm_eps, name='norm')
 
     def __call__(self, x):
         # x: [E, ..., Din]
         assert x.dtype == jaxutils.COMPUTE_DTYPE, (x.dtype, x.shape)
         x = self._layer(x)
-        x = self._norm(x)
+        if self.shared:  # single-head norm: fold the ensemble axis into the batch
+            x = self._norm(x.reshape((1, x.shape[0] * x.shape[1]) + x.shape[2:])).reshape(x.shape)
+        else:
+            x = self._norm(x)
         x = get_act(self.act)(x)
         return x
 
@@ -1007,22 +1016,24 @@ class EnsembleLinear(nj.Module):
         din = x.shape[-1]
         dout = int(np.prod(self.units))
 
-        # kernel: [E, Din, Dout]
-        shape = (E, din, dout)
-        fan_shape = (E, self.fanin, dout) if self.fanin else None
+        # kernel: [E, Din, Dout] ([1, Din, Dout] broadcast to E when shared)
+        P = 1 if self.shared else E
+        shape = (P, din, dout)
+        fan_shape = (P, self.fanin, dout) if self.fanin else None
         init = self._ensemble_ortho_init if self.winit == 'ortho' else self._winit
         W = self.get('kernel', init, shape, fan_shape).astype(x.dtype)
+        W = jnp.broadcast_to(W, (E, din, dout))
 
         # [E, ..., Din] @ [E, Din, Dout] -> [E, ..., Dout]
         y = jnp.einsum('e...i,eio->e...o', x, W)
 
         if self.bias:
             if self.binit:
-                b = self.get('bias', self._winit, (E, dout), shape).astype(x.dtype)
+                b = self.get('bias', self._winit, (P, dout), shape).astype(x.dtype)
             else:
-                b = self.get('bias', self._binit, (E, dout)).astype(x.dtype)
+                b = self.get('bias', self._binit, (P, dout)).astype(x.dtype)
 
-            b = b.reshape((E,) + (1,) * (y.ndim - 2) + (dout,))
+            b = b.reshape((P,) + (1,) * (y.ndim - 2) + (dout,))
             y = y + b
 
         if len(self.units) > 1:

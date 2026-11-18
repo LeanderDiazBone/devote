@@ -224,7 +224,8 @@ class BaseAgent(nj.Module, ReportMixin):
             epistemic_shared_contexts=prior_epistemic_shared_contexts,
             residual_bootstrap=bool(residual_bootstrap),
             residual_bootstrap_kw={**head_kw, 'dist': config.residual_bootstrap_dist},
-            residual_bootstrap_shape=q_shape)
+            residual_bootstrap_shape=q_shape,
+            shared_head=bool(config.get('shared_base_critic', False)))
         q = dr_nets.PriorCritic(q_shape, num_heads=N, name=names[0], **wrap_kw, **head_kw)
         q_tgt = dr_nets.PriorCritic(q_shape, num_heads=N, name=names[1], **wrap_kw, **head_kw, dtype='float32')
         q_upd = jaxutils.SlowUpdater(q, q_tgt, config.slow_critic_fraction, config.slow_critic_update, name=names[3])
