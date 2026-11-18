@@ -50,6 +50,8 @@ DEVOTE_FIX_METHODS = [f'devote_exploit_kl_{w}' for w in ['0_01', '0_1', '1']] + 
     'devote_actor_heads_1', 'devote_length_5']  # single exploit actor on the 8-head critic; prior length scale 5
 NO_RESET_TASKS = ['cheetah_run']  # every DEVOTE_FIX variant still degraded here; RND (no resets) does not
 NO_RESET_METHODS = ['devote_no_reset']  # devote with reset_soft_alpha=0
+BETA_TASKS = ['cheetah_run', 'hopper_hop']  # does the exploration bonus cause the drop? beta=1 is reward_dmc_devote
+BETA_METHODS = [f'devote_beta_{b}' for b in ['0', '0_1', '0_3']]  # devote + beta=b
 MPI_GPU = 'A100'  # matched against the slot's GPUs_DeviceName (A100-SXM4-40GB/80GB)
 MPI_EXCLUDE = ['i201', 'g155']  # JAX failed to find the assigned GPU on these nodes
 EULER_EXCLUDE = ['eu-g6-064']  # as in the paper's optimistic-curiosity launcher: persistent CUDA_ERROR_UNKNOWN
@@ -74,6 +76,7 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False, rewa
     base, _, scale = method.removesuffix('_soft_reset').removesuffix('_no_reset').partition('_length_')  # devote_length_2_5: devote + length_scales/2_5.args
     base, _, kl = base.partition('_exploit_kl_')  # devote_exploit_kl_0_1: devote with exploit_kl_reg=0.1
     base, _, heads = base.partition('_actor_heads_')  # devote_actor_heads_1: devote with actor_heads=1
+    base, _, beta = base.partition('_beta_')  # devote_beta_0_1: devote with beta=0.1
     act = base.partition('mlp_prior_')[2]  # mlp_prior_tanh_length_2_5: devote + mlp_prior/tanh.args at length 2.5
     base = 'devote' if act else base
     paths = [
@@ -104,6 +107,9 @@ def assemble(task, method, seed, logs_dir, verify=False, reward_free=False, rewa
     if kl:
         flags['exploit_kl_reg'] = kl.replace('_', '.')
         flags['group_name'] += f'_exploit_kl_{kl}'
+    if beta:
+        flags['beta'] = beta.replace('_', '.')
+        flags['group_name'] += f'_beta_{beta}'
     if heads:
         flags['actor_heads'] = heads
         flags['group_name'] += f'_actor_heads_{heads}'
@@ -199,6 +205,12 @@ def main(args):
             for task in NO_RESET_TASKS for method in NO_RESET_METHODS for seed in SEEDS
         ]
         group = REWARD_PREFIX
+    if args.beta_sweep:
+        runs = [
+            assemble(task, method, seed, logs_dir, rewarded=True)
+            for task in BETA_TASKS for method in BETA_METHODS for seed in SEEDS
+        ]
+        group = REWARD_PREFIX
     if args.rewarded:
         runs = [
             assemble(task, method, seed, logs_dir, rewarded=True)
@@ -291,6 +303,8 @@ if __name__ == '__main__':
                         help='Launch the rewarded DEVOTE fixes (DEVOTE_FIX_METHODS: exploit KL sweep, actor_heads=1, length 5) on DEVOTE_FIX_TASKS instead.')
     parser.add_argument('--no_reset', default=False, action='store_true',
                         help='Launch rewarded DEVOTE without soft resets (NO_RESET_METHODS) on NO_RESET_TASKS instead.')
+    parser.add_argument('--beta_sweep', default=False, action='store_true',
+                        help='Launch rewarded DEVOTE with the exploration-bonus scale sweep (BETA_METHODS) on BETA_TASKS instead.')
     parser.add_argument('--num_cpus', type=int, default=None, help='Default: 1 on Euler (paper setting), 4 on MPI.')
     parser.add_argument('--num_gpus', type=int, default=1)
     parser.add_argument('--num_hours', type=int, default=12)
